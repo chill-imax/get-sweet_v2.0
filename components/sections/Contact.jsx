@@ -1,13 +1,14 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { Mail, Phone, MapPin, MessageCircleDashed } from 'lucide-react';
+import { Mail, Phone, MessageCircleDashed } from 'lucide-react';
 import { motion } from 'framer-motion';
 import InfoCardContact from './InfoCardContact.jsx';
 import { useAuth } from '@/context/useContext';
+import { useRouter } from 'next/navigation.js'; 
 
 
 // --- Componente de Input del Formulario ---
-const FormInput = ({ id, label, placeholder, type = 'text',required = false, className = '' }) => (
+const FormInput = ({ id, label, placeholder, type = 'text',required = false, className = "", defaultValue= "" }) => (
   <div className={className}>
     <label htmlFor={id} className="block text-base font-semibold text-gray-900 mb-2">
       {label} 
@@ -16,6 +17,7 @@ const FormInput = ({ id, label, placeholder, type = 'text',required = false, cla
       type={type}
       id={id}
       placeholder={placeholder}
+      defaultValue={defaultValue}
       className="w-full px-4 py-3 border border-gray-300 rounded-xl  focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-colors"
     />
   </div>
@@ -23,14 +25,22 @@ const FormInput = ({ id, label, placeholder, type = 'text',required = false, cla
 
 // --- Componente Principal de la Sección de Contacto ---
 export function ContactUsSection() {
-  const { token, user, isAuthenticated } = useAuth();
+  const { token, user, isAuthenticated, loading } = useAuth();
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+useEffect(() => {
+  if (!loading && !isAuthenticated) {
+    router.push("/sign-in");
+  }
+}, [loading, isAuthenticated, router]);
+  
   const handleSubmit = async (e) => {
   e.preventDefault();
 
   if (!isAuthenticated || !token) {
     alert("Please login or register first!");
+    router.push("/sign-in");
     return;
   }
 
@@ -38,6 +48,11 @@ export function ContactUsSection() {
   const email = e.target.email.value;
   const company = e.target.company.value;
   const message = e.target.message.value;
+
+  if (message.leght > 200) {
+    alert("Message cannot exceed 200 characters.");
+    return;
+  }
 
   setIsSubmitting(true);
 
@@ -55,11 +70,13 @@ export function ContactUsSection() {
 
     if (!res.ok) throw new Error("Error sending message");
 
-    alert("Message sent successfully!");
+    alert("✅ Message sent successfully!");
     e.target.reset();
   } catch (err) {
     console.error(err);
     alert("Failed to send message");
+  }finally{
+    setIsSubmitting(false);
   }
 };
 
@@ -119,7 +136,7 @@ export function ContactUsSection() {
             
             {/* Inputs de nombre y correo */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormInput id="name" label="Name" placeholder="John Doe" required className='text-gray-800' defaultValue={user?.fullName || ""} />
+            <FormInput id="name" label="Name" placeholder="John Doe" required className='text-gray-800' defaultValue={user?.name || ""} />
             <FormInput id="email" label="Email" placeholder="john@company.com" type="email" required className='text-gray-800' defaultValue={user?.email || ""}/>
             </div>
 
@@ -133,7 +150,7 @@ export function ContactUsSection() {
             </label>
             <textarea
                 id="message"
-                rows="5"
+                rows="7"
                 required
                 placeholder="Type your message here..."
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 placeholder-gray-600 text-gray-900 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-colors"
@@ -143,11 +160,12 @@ export function ContactUsSection() {
             {/* Botón */}
             <motion.button
             type="submit"
-            className="w-full px-8 py-3 rounded-xl font-semibold text-white bg-linear-to-r from-purple-500 to-pink-500 shadow-md hover:brightness-90 transition-colors duration-300"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            disabled={isSubmitting}
+            className={`w-full px-8 py-3 rounded-xl font-semibold text-white ${ isSubmitting ? "bg-purple-300 cursor-not-allowed" : "bg-linear-to-r from-purple-500 to-pink-500 hover:brightness-90" } shadow-md transition-all duration-300`}
+            whileHover={!isSubmitting ? { scale: 1.02 } : {}}
+            whileTap={!isSubmitting ? { scale: 0.98 } : {}}
             >
-            Send Message
+            {isSubmitting ? "Sending..." : "Send Message"}
             </motion.button>
         </form>
         </motion.div>

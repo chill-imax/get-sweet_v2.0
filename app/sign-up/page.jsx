@@ -3,11 +3,12 @@ import { Mail, Lock, ArrowLeft, User, Check, Loader2 } from "lucide-react";
 import Image from "next/image";
 import logo from "../../public/icons/logogetsweet.png";
 import { useState } from "react";
+import { useAuth } from "@/context/useContext";
 
 const GOOGLE_ICON_URL = "https://www.svgrepo.com/show/475656/google-color.svg";
-const API_BASE_URL =  "https://backend-get-sweet-v2-0.onrender.com/api/v1";
 
 export default function SignUp() {
+  const {register} = useAuth();
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -47,24 +48,14 @@ export default function SignUp() {
       setLoading(true);
       setMessage({ type: "", text: "" });
 
-      const response = await fetch(`${API_BASE_URL}/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fullName: form.fullName,
+      await register({
+        fullName: form.fullName,
           email: form.email,
           password: form.password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Registration failed. Please try again.");
-      }
-
+      })
+ 
       setMessage({ type: "success", text: "Account created successfully! Redirecting..." });
-      setTimeout(() => (window.location.href = "/sign-in"), 1500);
+      setTimeout(() => (window.location.href = "/"), 1500);
     } catch (error) {
       console.error("Error during registration:", error);
       setMessage({ type: "error", text: error.message });

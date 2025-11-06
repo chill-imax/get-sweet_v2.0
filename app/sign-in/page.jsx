@@ -3,6 +3,7 @@ import { Mail, Lock, ArrowLeft, Loader2 } from "lucide-react";
 import Image from "next/image";
 import logo from "../../public/icons/logogetsweet.png";
 import { useState } from "react";
+import { useAuth } from "@/context/useContext";
 
 const API_BASE_URL = "https://backend-get-sweet-v2-0.onrender.com/api/v1";
 const GOOGLE_ICON_URL = "https://www.svgrepo.com/show/475656/google-color.svg";
@@ -12,46 +13,62 @@ export default function SignIn() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
+  
   const handleBackToHome = () => {
     window.location.href = '/';
   };
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+const { login } = useAuth();
 
-    if (!email || !password) {
-      setError('Por favor, ingresa tu email y contraseña.');
-      setLoading(false);
-      return;
+const handleLogin = async (e) => {
+  e.preventDefault();
+  setError('');
+  setLoading(true);
+
+  if (!email || !password) {
+    setError('Por favor, ingresa tu email y contraseña.');
+    setLoading(false);
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || `Error del servidor (${response.status})`);
     }
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
+    console.log("Token:", data.token);
+    console.log("ID:", data._id);
+    console.log("Nombre:", data.fullName);
+    console.log("Email:", data.email);
 
-      const data = await response.json();
+    // Guardar en contexto y localStorage
+    login(
+      {
+        id: data._id,
+        name: data.fullName,
+        email: data.email,
+        role: data.role,
+      },
+      data.token
+    );
 
-      if (response.ok) {
-        localStorage.setItem('userToken', data.token);
-        window.location.href = '/thank-u'; 
-      } else {
-        const errorMessage = data.message || 'Error desconocido al iniciar sesión.';
-        setError(errorMessage);
-      }
-    } catch (err) {
-      setError('No se pudo conectar al servidor. Verifica la URL de la API o la conexión a internet.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    window.location.href = '/thank-u';
+  } catch (err) {
+    console.error("Error en el login:", err);
+    setError(err.message || 'No se pudo conectar al servidor.');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <section 

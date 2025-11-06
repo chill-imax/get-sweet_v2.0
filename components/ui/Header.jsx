@@ -79,11 +79,11 @@ const Header = () => {
           <Link href={sectionLink("use-cases")} className="text-gray-700 hover:text-black">Use cases</Link> 
           <Link href={sectionLink("pricing")} className="text-gray-700 hover:text-black">Pricing</Link> 
           <Link href={sectionLink("contact-us")} className="text-gray-700 hover:text-black">Contact us</Link> 
+          
           {isAuthenticated ? (
-                // Muestra el nombre y el botón de Sign Out
                 <>
                     <span className="text-sm font-medium text-purple-900 mr-4">
-                        Hola, {user.fullName.split(' ')[0]}
+                        Hey {user?.name?.split(' ')[0] || 'user'}!
                     </span>
                     <button onClick={logout} className="text-gray-800 font-bold px-4 py-2 rounded-xl ml-6 hover:bg-gray-200 p-2">
                         Sign Out
@@ -95,19 +95,25 @@ const Header = () => {
                   <Link href="/sign-in" className="text-gray-800 font-bold px-4 py-2 rounded-xl ml-6 hover:bg-gray-200 p-2">Sign In</Link> 
                   <Link href="/sign-up" className="px-4 py-2 rounded-xl bg-linear-to-r from-purple-500 to-pink-500 text-white font-semibold hover:brightness-90 transition" > Get Started </Link> 
                 </>
-            )}
-          
-          
+            )} 
         </nav>
 
         {/* Mobile Menu Button */}
         <div className="md:hidden flex items-center">
-          <Link
-            href="/sign-up"
-            className="px-4 py-2 rounded-xl bg-linear-to-r from-purple-500 to-pink-500 text-white font-semibold hover:opacity-90 transition"
-          >
-            Get Started
-          </Link>
+          {isAuthenticated && user ? ( 
+                <li> 
+                 <span className="text-sm font-medium text-purple-900 mr-4">
+                        Hey {user?.name?.split(' ')[0] || 'user'}!
+                    </span>
+                </li> 
+              ) : ( 
+                <> 
+                  <Link href="/sign-up" className="px-4 py-2 rounded-xl bg-linear-to-r from-purple-500 to-pink-500 text-white font-semibold hover:opacity-90 transition">
+                    Get Started
+                  </Link>
+                </> 
+              )}
+
 
           <button onClick={toggleMenu} className="ml-3 focus:outline-none">
             {isOpen ? (
@@ -149,9 +155,13 @@ const Header = () => {
               <li>
                 <Link href={sectionLink("pricing")} className="block text-gray-700 hover:text-gray-900" onClick={toggleMenu}>Pricing</Link>
               </li>
-              <li>
-                <Link href="/sign-in" className="block text-gray-700 hover:text-gray-900" onClick={toggleMenu}>Sign In</Link>
-              </li>
+              {isAuthenticated && user ? ( 
+                <li><button onClick={logout} className="block text-gray-700 hover:text-gray-900">Sign Out</button></li>
+              ) : ( 
+                <> 
+                <li><Link href="/sign-in" className="block text-gray-700 hover:text-gray-900" onClick={toggleMenu}>Sign In</Link></li> 
+                </> 
+              )}
             </ul>
           </motion.nav>
         )}
