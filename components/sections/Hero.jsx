@@ -2,7 +2,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-// Iconos simples para las características inferiores (usando inline SVG o FontAwesome, aquí usamos texto/emoji para simplicidad)
+
 const FeatureIcon = ({ icon, text }) => (
   <div className="flex items-center text-sm text-gray-700">
     <span className="mr-2 text-xl">{icon}</span>
@@ -16,8 +16,8 @@ const containerVariants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1, // Introduce cada elemento con un pequeño retraso
-      delayChildren: 0.3, // Retraso antes de que comience la primera animación
+      staggerChildren: 0.1, 
+      delayChildren: 0.3, 
     },
   },
 };
@@ -46,13 +46,9 @@ const titleVariants = {
 
 const HeroSection = () => {
   return (
-    // El gradiente de fondo radial (from-white/purple-100 to-transparent)
-    // Se usa un color muy claro en el centro para dar el efecto de luz.
     <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 
       bg-radial-gradient-to-t from-white via-white to-purple-50/50" 
       style={{
-        // Este CSS simula un gradiente radial sutil, similar al de la imagen
-        // Va de un color casi blanco en el centro a un morado muy suave en los bordes
         background: 'radial-gradient(circle at center top, #ffffff 0%, #ffffff 30%, #f3e8ff 70%, #d8b4fe 100%)',
       }}
     >
@@ -66,7 +62,7 @@ const HeroSection = () => {
           className="flex flex-col items-center"
         >
           
-          {/* Tag de la característica */}
+         
           <motion.div 
             variants={itemVariants}
             className="mb-4 inline-flex items-center px-3 py-1 text-xs font-medium rounded-full text-green-700 bg-green-100"
@@ -75,20 +71,19 @@ const HeroSection = () => {
             Now powered by advanced AI
           </motion.div>
 
-          {/* Título Principal */}
+      
           <motion.h1 
             variants={titleVariants}
             className="text-5xl md:text-7xl font-bold mb-6 leading-tight"
           >
             <span className="text-gray-900">AI That Understands Your</span>
             <br />
-            {/* Gradiente en el texto para replicar el estilo de la imagen */}
             <span className="bg-clip-text text-transparent bg-linear-to-r from-purple-600 to-pink-600">
               Business
             </span>
           </motion.h1>
 
-          {/* Subtítulo */}
+          
           <motion.p 
             variants={itemVariants}
             className="max-w-3xl text-xl text-gray-500 mb-10"
@@ -96,12 +91,11 @@ const HeroSection = () => {
             Transform your workflow with intelligent automation. Sweet AI helps you work smarter, faster, and more efficiently than ever before.
           </motion.p>
 
-          {/* Botones */}
           <motion.div 
             variants={itemVariants}
             className="flex space-x-4 mb-16"
           >
-            {/* Botón Principal (con gradiente y hover) */}
+          
             <a
               href="#start"
               className="px-6 py-3 rounded-xl bg-linear-to-r from-purple-600 to-pink-600 text-white font-semibold 
@@ -110,7 +104,7 @@ const HeroSection = () => {
               Start Free Trial →
             </a>
             
-            {/* Botón Secundario (Watch Demo) */}
+           
             <a
               href="#demo"
               className="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold 

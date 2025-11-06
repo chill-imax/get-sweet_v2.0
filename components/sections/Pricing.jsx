@@ -62,7 +62,7 @@ const plans = [
   },
 ];
 
-// --- Framer Motion Variants ---
+
 const cardVariants = {
   hidden: { opacity: 0, y: 50 },
   visible: { 
@@ -85,7 +85,7 @@ const PricingCard = ({ plan, index }) => {
     
   // Estilos del borde para el plan popular
   const borderClasses = plan.isPopular
-    ? "border-2 border-transparent bg-clip-padding bg-origin-border" // Requiere un contenedor para el gradiente de borde
+    ? "border-2 border-transparent bg-clip-padding bg-origin-border" 
     : "border border-gray-100";
     
   // Clase para el contenedor del borde gradiente (simulación con un div extra)
@@ -96,7 +96,7 @@ const PricingCard = ({ plan, index }) => {
   return (
     <motion.div
       variants={cardVariants}
-      className={wrapperClasses} // Usa el wrapper para el borde gradiente
+      className={wrapperClasses} 
     >
       <div 
         className={`bg-white p-8 h-full rounded-3xl text-left flex flex-col transition-shadow duration-300 ${plan.isPopular ? 'p-7' : ''}`}
@@ -125,7 +125,7 @@ const PricingCard = ({ plan, index }) => {
           </div>
         </div>
 
-        {/* Botón */}
+     =
         <motion.button
           className={`w-full py-3 rounded-xl text-center mb-6 transition-all ${buttonClasses}`}
           whileHover={{ scale: 1.05 }}

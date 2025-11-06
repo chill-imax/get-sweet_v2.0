@@ -1,6 +1,6 @@
 "use client";
 
-import Footer from "@/components/sections/Footer";
+import Footer from "@/components/ui/Footer";
 import TermsOfService from "@/components/sections/TermsService";
 import Header from "@/components/ui/Header";
 

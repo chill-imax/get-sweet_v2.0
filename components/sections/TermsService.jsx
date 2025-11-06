@@ -31,11 +31,11 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-2xl font-semibold mt-10 mb-4">Agreement between User and <strong>GetSweet.AI</strong></h2>
             <p>
-                Welcome to getsweet.ai. The getsweet.ai website (the "Site") is
-                comprised of various web pages operated by SWEEET AI LLC ("Sweeet AI").
+                Welcome to getsweet.ai. The getsweet.ai website (the &quot;Site&quot;) is
+                comprised of various web pages operated by SWEEET AI LLC (&quot;Sweeet AI&quot;).
                 getsweet.ai is offered to you conditioned on your acceptance without
                 modification of the terms, conditions, and notices contained herein (the
-                "Terms"). Your use of getsweet.ai constitutes your agreement to all such
+                &quot;Terms&quot;). Your use of getsweet.ai constitutes your agreement to all such
                 Terms. Please read these terms carefully, and keep a copy of them for
                 your reference.
             </p>

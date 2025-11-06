@@ -37,16 +37,13 @@ const featuresData = [
   },
 ];
 
-
-// --- Framer Motion Variants ---
-
 // Variante para el contenedor de las tarjetas
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1, // Retraso de 0.1s entre la animación de cada tarjeta
+      staggerChildren: 0.1, 
     },
   },
 };
@@ -67,13 +64,10 @@ const cardVariants = {
 
 // Componente para el ícono con gradiente
 const GradientIcon = ({ Icon }) => (
-  // El div wrapper simula el fondo de la tarjeta de la imagen (blanco, sombra)
   <div className="relative p-3 rounded-xl shadow-lg bg-white">
-    {/* Fondo de gradiente simulando el marco del ícono */}
     <div className="absolute inset-0 rounded-xl opacity-90"
          style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #ec4899 100%)' }}>
     </div>
-    {/* El ícono con el color del gradiente, para que solo el path se vea del color deseado */}
     <Icon className="relative z-10 w-6 h-6 text-white" />
   </div>
 );
@@ -109,7 +103,6 @@ const FeaturesSection = () => {
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
           variants={containerVariants}
           initial="hidden"
-          // La animación se dispara al entrar en la vista
           whileInView="visible"
           viewport={{ once: true, amount: 0.3 }}
         >

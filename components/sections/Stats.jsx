@@ -1,13 +1,11 @@
 "use client";
 import React from 'react';
 import { motion } from 'framer-motion';
-// 1. IMPORTAMOS LOS ÍCONOS DE LUCIDE REACT
 import { Users, Clock, TrendingUp, ShieldCheck } from 'lucide-react';
 
 // Definición de las estadísticas
 const statsData = [
   {
-    // 2. USAMOS EL COMPONENTE <Users /> de Lucide React
     icon: (
       <Users className="w-10 h-10 text-white" strokeWidth={1.5} />
     ),
@@ -16,7 +14,6 @@ const statsData = [
     description: "Trust Sweet AI daily",
   },
   {
-    // 2. USAMOS EL COMPONENTE <Clock /> de Lucide React
     icon: (
       <Clock className="w-10 h-10 text-white" strokeWidth={1.5} />
     ),
@@ -25,7 +22,6 @@ const statsData = [
     description: "Through automation",
   },
   {
-    // 2. USAMOS EL COMPONENTE <TrendingUp /> de Lucide React
     icon: (
       <TrendingUp className="w-10 h-10 text-white" strokeWidth={1.5} />
     ),
@@ -34,7 +30,6 @@ const statsData = [
     description: "In the first year",
   },
   {
-    // 2. USAMOS EL COMPONENTE <ShieldCheck /> de Lucide React para representar Uptime/Garantía
     icon: (
       <ShieldCheck className="w-10 h-10 text-white" strokeWidth={1.5} />
     ),
@@ -44,18 +39,16 @@ const statsData = [
   },
 ];
 
-// Variantes del contenedor para la animación escalonada (stagger)
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.2, // Retraso entre cada columna de estadística
+      staggerChildren: 0.2,
     },
   },
 };
 
-// Variantes para los elementos individuales (cada columna de estadística)
 const itemVariants = {
   hidden: { opacity: 0, y: 50 },
   visible: { 
@@ -64,7 +57,7 @@ const itemVariants = {
     transition: { 
       type: "spring", 
       stiffness: 100, 
-      damping: 10 // Un poco de rebote suave
+      damping: 10 
     } 
   },
 };
@@ -73,7 +66,7 @@ const StatsSection = () => {
   return (
     <section 
       // Fondo degradado de morado fuerte a magenta, similar a la imagen
-      className="bg-gradient-to-r from-purple-700 to-pink-600 py-16 md:py-24"
+      className="bg-linear-to-r from-purple-700 to-pink-600 py-16 md:py-24"
     >
       <div className="max-w-7xl mx-auto px-6">
         
@@ -81,8 +74,6 @@ const StatsSection = () => {
           className="grid grid-cols-2 md:grid-cols-4 gap-8 text-white text-center"
           variants={containerVariants}
           initial="hidden"
-          // Usamos 'whileInView' para que la animación se dispare cuando el usuario desplace la vista
-          // hasta esta sección. El 'viewport' asegura que solo se anime una vez.
           whileInView="visible"
           viewport={{ once: true, amount: 0.5 }} 
         >

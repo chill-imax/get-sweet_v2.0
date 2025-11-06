@@ -57,13 +57,13 @@ const stepVariants = {
 
 const GradientIcon = ({ Icon }) => (
   <div className="relative p-3 rounded-xl shadow-lg bg-white overflow-hidden w-fit">
-    {/* Fondo de gradiente */}
+   
     <div 
         className="absolute inset-0 rounded-xl"
     
         style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #ec4899 100%)' }}
     />
-    {/* El ícono centrado y de color blanco */}
+    
     <Icon className="relative z-10 w-8 h-8 text-white" strokeWidth={2.5} />
   </div>
 );
@@ -76,18 +76,18 @@ const StepCard = ({ step, title, description, icon: Icon, isLast }) => (
   >
     {/* Contenedor del Ícono y la Línea */}
     <div className="flex flex-col items-center mr-6 md:mr-10">
-      {/* Ícono */}
+    
       <GradientIcon Icon={Icon} />
       
-      {/* Línea Vertical de Conexión */}
+     
       {!isLast && (
         <div className="flex grow w-0.5 h-100 bg-linear-to-b from-purple-400 to-pink-400 opacity-70 mt-2"
-             style={{ height: '100px' }}> {/* Altura fija para la línea */}
+             style={{ height: '100px' }}> 
         </div>
       )}
     </div>
 
-    {/* Contenido del Paso */}
+  
     <div className="flex-1 pt-2">
       <span className="text-sm font-normal bg-purple-100 rounded-full py-1 px-3 text-purple-600 ">
         {step}

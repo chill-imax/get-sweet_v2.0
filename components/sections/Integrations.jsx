@@ -20,7 +20,7 @@ const containerVariants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1, // Retraso entre la aparición de cada tarjeta
+      staggerChildren: 0.1, 
     },
   },
 };
@@ -34,7 +34,6 @@ export function IntegrationsSection() {
   return (
     <section id='integrations' className="py-20 bg-white text-center">
       
-      {/* Encabezados */}
       <h2 className="text-4xl md:text-5xl font-semibold text-gray-900 mb-4">
         Integrates with your favorite tools
       </h2>
@@ -42,7 +41,7 @@ export function IntegrationsSection() {
         Connect GetSweet AI with 100+ apps and services you already use
       </p>
 
-      {/* Grid de Logos */}
+    
 <motion.div
   className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-6 gap-8 px-4"
   variants={containerVariants}
