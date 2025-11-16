@@ -6,10 +6,10 @@ const BASE_URL = "https://backend-get-sweet-v2-0.onrender.com/api/v1";
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-const [user, setUser] = useState(null);
-const [token, setToken] = useState(null);
-const [isAuthenticated, setIsAuthenticated] = useState(false);
-const [loading, setLoading] = useState(true); 
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
@@ -30,47 +30,71 @@ const [loading, setLoading] = useState(true);
     setLoading(false); // 👈 terminamos de inicializar
   }, []);
 
-const login = (userData, token) => {
-if (userData && token) {
-localStorage.setItem("token", token);
-localStorage.setItem("user", JSON.stringify(userData));
-setUser(userData);
-setToken(token);
-setIsAuthenticated(true);
-}
-};
+  const login = (userData, token) => {
+    if (userData && token) {
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(userData));
+      setUser(userData);
+      setToken(token);
+      setIsAuthenticated(true);
+    }
+  };
 
-const logout = () => {
-localStorage.removeItem("token");
-localStorage.removeItem("user");
-setUser(null);
-setToken(null);
-setIsAuthenticated(false);
-};
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setUser(null);
+    setToken(null);
+    setIsAuthenticated(false);
+  };
 
-const register = async ({ fullName, email, password }) => {
-const response = await fetch(`${BASE_URL}/auth/register`, {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({ fullName, email, password }),
-});
+  const register = async ({ fullName, email, password }) => {
+    const response = await fetch(`${BASE_URL}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fullName, email, password }),
+    });
 
-const data = await response.json();
+    const data = await response.json();
 
-if (!response.ok) {
-  throw new Error(data.message || "Registration failed");
-}
+    if (!response.ok) {
+      throw new Error(data.message || "Registration failed");
+    }
 
-// Iniciar sesión automáticamente después de registrarse
-login(data.user, data.token);
+    // Iniciar sesión automáticamente después de registrarse
+    login(data.user, data.token);
+  };
 
-};
+  const updateOnboarding = (onboardingData) => {
+    // Actualiza el estado del usuario en el contexto
+    setUser((prevUser) => {
+      const updatedUser = {
+        ...prevUser,
+        ...onboardingData,
+        onboardingCompleted: true, // Asegúrate de marcarlo como completado
+      };
+      // Actualiza también en el almacenamiento local
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      return updatedUser;
+    });
+  };
 
-return (
-<AuthContext.Provider value={{ user, token, isAuthenticated, loading, login, logout, register }}>
-{children}
-</AuthContext.Provider>
-);
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        isAuthenticated,
+        loading,
+        login,
+        logout,
+        register,
+        updateOnboarding,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => useContext(AuthContext);

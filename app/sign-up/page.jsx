@@ -8,7 +8,7 @@ import { useAuth } from "@/context/useContext";
 const GOOGLE_ICON_URL = "https://www.svgrepo.com/show/475656/google-color.svg";
 
 export default function SignUp() {
-  const {register} = useAuth();
+  const { register } = useAuth();
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -35,7 +35,10 @@ export default function SignUp() {
 
     // Validaciones básicas
     if (!agreedToTerms) {
-      setMessage({ type: "error", text: "You must accept the Terms and Privacy Policy." });
+      setMessage({
+        type: "error",
+        text: "You must accept the Terms and Privacy Policy.",
+      });
       return;
     }
 
@@ -50,12 +53,15 @@ export default function SignUp() {
 
       await register({
         fullName: form.fullName,
-          email: form.email,
-          password: form.password,
-      })
- 
-      setMessage({ type: "success", text: "Account created successfully! Redirecting..." });
-      setTimeout(() => (window.location.href = "/"), 1500);
+        email: form.email,
+        password: form.password,
+      });
+
+      setMessage({
+        type: "success",
+        text: "Account created successfully! Redirecting...",
+      });
+      setTimeout(() => (window.location.href = "/onboarding"), 1500);
     } catch (error) {
       console.error("Error during registration:", error);
       setMessage({ type: "error", text: error.message });
@@ -93,24 +99,38 @@ export default function SignUp() {
           </div>
         </div>
 
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Create Your Account</h2>
-        <p className="text-sm text-gray-500 mb-6">Start your 14-day free trial</p>
+        <h2 className="text-3xl font-bold text-gray-900 mb-2">
+          Create Your Account
+        </h2>
+        <p className="text-sm text-gray-500 mb-6">
+          Start your 14-day free trial
+        </p>
 
         {/* Google Sign-In */}
         <button className="w-full mb-4 flex items-center justify-center gap-3 border border-gray-300 bg-white hover:bg-gray-50 hover:shadow-lg transition duration-150 py-2.5 rounded-lg text-gray-700 font-semibold shadow-sm">
-          <Image src={GOOGLE_ICON_URL} alt="Google" width={20} height={20} className="w-5 h-5" />
+          <Image
+            src={GOOGLE_ICON_URL}
+            alt="Google"
+            width={20}
+            height={20}
+            className="w-5 h-5"
+          />
           Continue with Google
         </button>
 
         <div className="flex items-center my-6">
           <div className="flex-1 h-px bg-gray-200"></div>
-          <span className="px-3 text-sm text-gray-400">Or register with email</span>
+          <span className="px-3 text-sm text-gray-400">
+            Or register with email
+          </span>
           <div className="flex-1 h-px bg-gray-200"></div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-left">
           <div>
-            <label className="text-sm text-gray-700 font-medium">Full name</label>
+            <label className="text-sm text-gray-700 font-medium">
+              Full name
+            </label>
             <div className="relative mt-1">
               <User className="absolute left-3 top-2.5 h-5 w-5 text-purple-400" />
               <input
@@ -142,7 +162,9 @@ export default function SignUp() {
           </div>
 
           <div>
-            <label className="text-sm text-gray-700 font-medium">Password</label>
+            <label className="text-sm text-gray-700 font-medium">
+              Password
+            </label>
             <div className="relative mt-1">
               <Lock className="absolute left-3 top-2.5 h-5 w-5 text-purple-400" />
               <input
@@ -158,7 +180,9 @@ export default function SignUp() {
           </div>
 
           <div>
-            <label className="text-sm text-gray-700 font-medium">Confirm password</label>
+            <label className="text-sm text-gray-700 font-medium">
+              Confirm password
+            </label>
             <div className="relative mt-1">
               <Lock className="absolute left-3 top-2.5 h-5 w-5 text-purple-400" />
               <input
@@ -184,7 +208,11 @@ export default function SignUp() {
             <label htmlFor="terms" className="flex items-center cursor-pointer">
               <div
                 className={`w-5 h-5 rounded-md flex items-center justify-center transition-all duration-150 border-2 
-                  ${agreedToTerms ? "bg-purple-600 border-purple-600" : "bg-white border-gray-300 hover:border-purple-400"}`}
+                  ${
+                    agreedToTerms
+                      ? "bg-purple-600 border-purple-600"
+                      : "bg-white border-gray-300 hover:border-purple-400"
+                  }`}
               >
                 {agreedToTerms && <Check className="h-3 w-3 text-white" />}
               </div>
@@ -217,7 +245,11 @@ export default function SignUp() {
                 : "bg-linear-to-r from-fuchsia-500 to-purple-600 hover:from-fuchsia-600 hover:to-purple-700"
             } text-white font-semibold py-3 rounded-lg shadow-md mt-6 transition duration-300`}
           >
-            {loading ? <Loader2 className="animate-spin w-5 h-5" /> : "Create Account"}
+            {loading ? (
+              <Loader2 className="animate-spin w-5 h-5" />
+            ) : (
+              "Create Account"
+            )}
           </button>
         </form>
 
@@ -233,7 +265,10 @@ export default function SignUp() {
 
         <p className="text-sm text-gray-500 mt-6">
           Already have an account?{" "}
-          <a href="/sign-in" className="text-purple-600 hover:underline font-medium">
+          <a
+            href="/sign-in"
+            className="text-purple-600 hover:underline font-medium"
+          >
             Sign in
           </a>
         </p>
