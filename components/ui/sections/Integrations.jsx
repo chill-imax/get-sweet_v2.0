@@ -86,13 +86,13 @@ export function IntegrationsSection() {
           And 100+ more integrations via our API and Zapier
         </p>
 
-        <a
+        {/* <a
           href="#"
           className="inline-flex items-center text-purple-600 font-medium hover:text-purple-800 transition-colors"
         >
           View all integrations
           <ArrowRight className="w-4 h-4 ml-1 transition-transform group-hover:translate-x-1" />
-        </a>
+        </a> */}
       </div>
     </section>
   );

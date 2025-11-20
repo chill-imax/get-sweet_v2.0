@@ -26,10 +26,9 @@ export default function Home() {
       {/* <TestimonialsSection /> */}
       <PricingSection />
       <SecurityTrustSection />
-      <CallToActionSection />A
+      <CallToActionSection />
       <ContactUsSection />
       <Footer />
-      {/* Ícono flotante del ChatBot */}
       <FloatingChatIcon />
     </div>
   );
