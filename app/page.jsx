@@ -27,7 +27,7 @@ export default function Home() {
       <StatsSection />
       <IntegrationsSection />
       <CaseStudiesTeaser />
-      {/* <PricingSection /> */}
+      <PricingSection />
       <SecurityTrustSection />
       <TestimonialsSection />
       <CallToActionSection />
