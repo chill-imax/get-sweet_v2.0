@@ -1,18 +1,17 @@
 "use client";
 import { createContext, useContext, useState, useEffect } from "react";
 import { useSession, signIn, signOut, SessionProvider } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 const AuthContext = createContext();
 
-// --- 1. COMPONENTE LÓGICO ---
 const AuthLogic = ({ children }) => {
   const router = useRouter();
+  const pathname = usePathname();
 
-  // NextAuth Hook
-  const { data: session, status: googleStatus } = useSession();
+  // NextAuth
+  const { data: session, status: googleStatus, update } = useSession();
 
-  // Estado Local Unificado
   const [authState, setAuthState] = useState({
     user: null,
     token: null,
@@ -20,7 +19,7 @@ const AuthLogic = ({ children }) => {
     loading: true,
   });
 
-  // --- EFECTO 1: Carga Inicial (Local Storage) ---
+  // --- EFECTO 1: Carga Inicial ---
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
@@ -33,50 +32,68 @@ const AuthLogic = ({ children }) => {
         loading: false,
       });
     } else {
-      // Si no hay local, dejamos loading en true hasta ver qué dice Google
-      // (se maneja en el Efecto 2)
       if (googleStatus === "unauthenticated") {
         setAuthState((prev) => ({ ...prev, loading: false }));
       }
     }
-  }, []); // Solo al montar
+  }, [googleStatus]);
 
-  // --- EFECTO 2: Sincronización Google -> Estado Local ---
-  // ESTO ES LO NUEVO: Si NextAuth detecta sesión, actualizamos nuestro estado local
+  // --- EFECTO 2: EL GUARDIA INTELIGENTE 🛡️ ---
   useEffect(() => {
     if (googleStatus === "authenticated" && session) {
-      // Asumimos que en tu [...nextauth]/route.ts guardaste el token del backend en session.user.accessToken
       const backendToken = session.user.accessToken || null;
+      const isOnboardingCompleted = !!session.user.onboardingCompleted;
 
-      // Solo actualizamos si es diferente para evitar loops
+      // 1. Sincronizar Estado Local
       if (authState.token !== backendToken) {
-        const googleUser = {
-          ...session.user,
-          source: "google",
-          _id: session.user.id, // Ojo: Asegúrate de que el ID venga mapeado
-        };
-
         setAuthState({
-          user: googleUser,
-          token: backendToken, // ¡Ahora sí tenemos token para la API!
+          user: { ...session.user, source: "google", id: session.user.id },
+          token: backendToken,
           isAuthenticated: true,
           loading: false,
         });
+      }
 
-        // Opcional: Guardar en localStorage para persistencia híbrida
-        // localStorage.setItem("token", backendToken);
+      // 2. LÓGICA DE NAVEGACIÓN PROFESIONAL
+
+      if (!isOnboardingCompleted) {
+        // CASO A: Usuario INCOMPLETO
+        // Bloqueo total: Si no está en onboarding, lo mandamos allá.
+        if (pathname !== "/onboarding") {
+          console.log("🔒 Falta Onboarding -> Redirigiendo");
+          router.replace("/onboarding"); // Usamos replace para no ensuciar el historial
+        }
+      } else {
+        // CASO B: Usuario COMPLETO (Ya listo)
+
+        // Rutas que un usuario logueado NO debería ver:
+        const restrictedForAuthUsers = ["/sign-in", "/sign-up", "/register"];
+
+        // Rutas fantasmas que queremos corregir:
+        const ghostRoutes = ["/home"];
+
+        if (restrictedForAuthUsers.includes(pathname)) {
+          // Si intenta loguearse de nuevo, lo mandamos al chat
+          console.log("✅ Usuario ya logueado -> Ir al Chat");
+          router.replace("/chat");
+        } else if (ghostRoutes.includes(pathname)) {
+          // Si cae en el error 404 de /home, lo corregimos
+          console.log("👻 Ruta fantasma detectada -> Corrigiendo a Chat");
+          router.replace("/chat");
+        }
+
+        // NOTA: Si está en "/" (Landing), NO hacemos nada.
+        // Dejamos que vea la landing page tranquilamente.
       }
     } else if (
       googleStatus === "unauthenticated" &&
       !localStorage.getItem("token")
     ) {
-      // Si Google dice "no", y no hay nada en local storage, terminamos de cargar
       setAuthState((prev) => ({ ...prev, loading: false }));
     }
-  }, [session, googleStatus]);
+  }, [session, googleStatus, pathname]);
 
   // --- MÉTODOS ---
-
   const login = (userData, token) => {
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(userData));
@@ -89,27 +106,21 @@ const AuthLogic = ({ children }) => {
   };
 
   const loginWithGoogle = () => {
-    // Redirigir a Google
-    signIn("google", { callbackUrl: "/home" }); // Ajusta tu ruta de destino
+    signIn("google"); // Sin callbackUrl, dejamos que el Guardia decida
   };
 
   const logout = async () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-
-    // Limpiamos estado local
     setAuthState({
       user: null,
       token: null,
       isAuthenticated: false,
       loading: false,
     });
-
-    // Si venía de Google, cerramos sesión allá también
     if (googleStatus === "authenticated") {
       await signOut({ redirect: false });
     }
-
     router.push("/sign-in");
   };
 
@@ -122,21 +133,68 @@ const AuthLogic = ({ children }) => {
         body: JSON.stringify({ fullName, email, password }),
       }
     );
-
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || "Error en registro");
-
     login(data.user, data.token);
+  };
+
+  const updateOnboarding = async (onboardingData) => {
+    console.log("🚀 Enviando Onboarding...");
+    const activeToken = authState.token || session?.user?.accessToken;
+
+    if (!activeToken) {
+      console.error("❌ Sin token");
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/onboarding`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${activeToken}`,
+          },
+          body: JSON.stringify(onboardingData),
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Error al actualizar");
+
+      console.log("✅ Éxito. Actualizando sesión...");
+
+      // Actualizamos la cookie de sesión
+      await update({ onboardingCompleted: true });
+
+      setAuthState((prev) => {
+        const updatedUser = {
+          ...prev.user,
+          onboardingCompleted: true,
+          ...data.user,
+        };
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+        return { ...prev, user: updatedUser };
+      });
+
+      // Redirigimos al chat
+      router.push("/chat");
+    } catch (error) {
+      console.error("Error updateOnboarding:", error);
+      throw error;
+    }
   };
 
   return (
     <AuthContext.Provider
       value={{
-        ...authState, // Esto expone user, token, isAuthenticated, loading directamente
+        ...authState,
         login,
         loginWithGoogle,
         logout,
         register,
+        updateOnboarding,
       }}
     >
       {children}
@@ -144,7 +202,6 @@ const AuthLogic = ({ children }) => {
   );
 };
 
-// --- 2. EXPORT ---
 export const AuthProvider = ({ children }) => {
   return (
     <SessionProvider>
