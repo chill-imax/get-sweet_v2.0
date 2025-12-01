@@ -4,7 +4,7 @@ import Image from "next/image";
 import logo from "../../public/icons/logogetsweet.png";
 import { useState } from "react";
 import { useAuth } from "@/context/useContext";
-import GoogleButton from "@/components/ui/GoogleButton";
+import { GoogleLoginBtn } from "@/components/auth/GoogleLogin";
 
 const GOOGLE_ICON_URL = "https://www.svgrepo.com/show/475656/google-color.svg";
 
@@ -112,15 +112,15 @@ export default function SignIn() {
         </p>
 
         {/* Google Sign-In */}
-        {/* <GoogleButton redirectUrl="/thank-u" label="Continue with Google" />
+        <GoogleLoginBtn callbackUrl="/chat" label="Continue with Google" />
 
         <div className="flex items-center my-6">
           <div className="flex-1 h-px bg-gray-200"></div>
           <span className="px-3 text-sm text-gray-400">
-            Or continue with email
+            Or login with email
           </span>
           <div className="flex-1 h-px bg-gray-200"></div>
-        </div> */}
+        </div>
 
         <form className="space-y-4 text-left" onSubmit={handleLogin}>
           <div>

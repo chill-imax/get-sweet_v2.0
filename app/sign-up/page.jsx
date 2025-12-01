@@ -4,9 +4,9 @@ import Image from "next/image";
 import logo from "../../public/icons/logogetsweet.png";
 import { useState } from "react";
 import { useAuth } from "@/context/useContext";
-import GoogleButton from "@/components/ui/GoogleButton";
+import { GoogleLoginBtn } from "@/components/auth/GoogleLogin";
 
-const GOOGLE_ICON_URL = "https://www.svgrepo.com/show/475656/google-color.svg";
+// const GOOGLE_ICON_URL = "https://www.svgrepo.com/show/475656/google-color.svg";
 
 export default function SignUp() {
   const { register } = useAuth();
@@ -108,7 +108,10 @@ export default function SignUp() {
         </p>
 
         {/* Google Sign-up */}
-        {/* <GoogleButton redirectUrl="/onboarding" label="Continue with Google" />
+        <GoogleLoginBtn
+          callbackUrl="/onboarding"
+          label="Continue with Google"
+        />
 
         <div className="flex items-center my-6">
           <div className="flex-1 h-px bg-gray-200"></div>
@@ -116,7 +119,7 @@ export default function SignUp() {
             Or register with email
           </span>
           <div className="flex-1 h-px bg-gray-200"></div>
-        </div> */}
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-left">
           <div>
