@@ -112,7 +112,7 @@ export default function SignIn() {
         </p>
 
         {/* Google Sign-In */}
-        <GoogleLoginBtn callbackUrl="/chat" label="Continue with Google" />
+        <GoogleLoginBtn label="Continue with Google" />
 
         <div className="flex items-center my-6">
           <div className="flex-1 h-px bg-gray-200"></div>

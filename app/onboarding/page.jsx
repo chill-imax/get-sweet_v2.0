@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/useContext";
 import { Briefcase, Layers, Smartphone, Loader2 } from "lucide-react";
-import logo from "@/public/icons/logogetsweet.png";
+import logo from "../../public/icons/logogetsweet.png"; // Ajusta la ruta si es necesario
 
 const industries = [
   "Restaurants",
@@ -24,6 +24,8 @@ const industries = [
 
 export default function Onboarding() {
   const router = useRouter();
+
+  // Extraemos la función inteligente updateOnboarding del contexto
   const { user, updateOnboarding, loading } = useAuth();
 
   const [form, setForm] = useState({
@@ -34,19 +36,24 @@ export default function Onboarding() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
 
+  // Redirección si no hay usuario (pero esperamos a que termine de cargar)
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/sign-in");
+    }
+  }, [user, loading, router]);
+
   if (loading) {
     return (
       <section className="flex flex-col justify-center items-center min-h-screen p-4">
         <Loader2 className="animate-spin h-8 w-8 text-purple-600" />
-        <p className="mt-3 text-lg text-purple-600">Loading user data...</p>
+        <p className="mt-3 text-lg text-purple-600">Syncing with Google...</p>
       </section>
     );
   }
 
-  if (!user) {
-    router.push("/sign-in");
-    return null;
-  }
+  // Si no hay usuario, retornamos null mientras el useEffect redirige
+  if (!user) return null;
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -58,40 +65,24 @@ export default function Onboarding() {
     setMessage({ type: "", text: "" });
 
     try {
-      const token = localStorage.getItem("token");
-      if (!token) throw new Error("User not authenticated");
+      // ✅ CAMBIO CLAVE:
+      // En lugar de hacer fetch manual y buscar el token en localStorage (que fallaba),
+      // llamamos a la función del Contexto. Ella ya tiene el token de Google.
+      await updateOnboarding(form);
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/onboarding`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(form),
-        }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setMessage({
-          type: "error",
-          text: data.message || "Profile update failed",
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      updateOnboarding(data.user);
       setMessage({
         type: "success",
         text: "Profile completed! Redirecting...",
       });
-      setTimeout(() => router.push("/thank-u"), 1500);
+
+      // La redirección ya la hace el contexto, pero por seguridad visual:
+      setTimeout(() => router.push("home"), 1500); // O '/thank-u'
     } catch (err) {
-      setMessage({ type: "error", text: err.message || "Connection error" });
+      console.error(err);
+      setMessage({
+        type: "error",
+        text: err.message || "Connection error. Please try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -112,7 +103,7 @@ export default function Onboarding() {
             width={48}
             height={48}
             alt="SweetAI Logo"
-            className="mb-3"
+            className="mb-3 w-12 h-12 object-contain"
           />
           <h2 className="text-2xl font-extrabold text-gray-900 mb-1">
             Almost Ready! ✨

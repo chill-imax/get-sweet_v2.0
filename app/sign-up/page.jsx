@@ -108,10 +108,7 @@ export default function SignUp() {
         </p>
 
         {/* Google Sign-up */}
-        <GoogleLoginBtn
-          callbackUrl="/onboarding"
-          label="Continue with Google"
-        />
+        <GoogleLoginBtn label="Continue with Google" />
 
         <div className="flex items-center my-6">
           <div className="flex-1 h-px bg-gray-200"></div>
