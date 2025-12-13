@@ -53,6 +53,12 @@ const NavLinks = ({
         How it works
       </button>
       <button
+        onClick={() => handleClick("/#pricing")}
+        className="text-gray-700 hover:text-black px-3 py-2 rounded-lg transition"
+      >
+        Pricing
+      </button>
+      <button
         onClick={() => handleClick("/case-studies")}
         className="text-gray-700 hover:text-black px-3 py-2 rounded-lg transition"
       >
