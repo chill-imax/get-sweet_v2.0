@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/useContext";
 import { Briefcase, Layers, Smartphone, Loader2 } from "lucide-react";
-import logo from "../../public/icons/logogetsweet.png"; // Ajusta la ruta si es necesario
+import logo from "../../public/icons/logogetsweet.png";
 
 const industries = [
   "Restaurants",
@@ -25,7 +25,6 @@ const industries = [
 export default function Onboarding() {
   const router = useRouter();
 
-  // Extraemos la función inteligente updateOnboarding del contexto
   const { user, updateOnboarding, loading } = useAuth();
 
   const [form, setForm] = useState({
@@ -75,8 +74,7 @@ export default function Onboarding() {
         text: "Profile completed! Redirecting...",
       });
 
-      // La redirección ya la hace el contexto, pero por seguridad visual:
-      setTimeout(() => router.push("chat"), 1500); 
+      setTimeout(() => router.push("chat"), 1500);
     } catch (err) {
       console.error(err);
       setMessage({

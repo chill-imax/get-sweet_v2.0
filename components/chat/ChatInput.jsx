@@ -43,8 +43,8 @@ export default function ChatInput({ onSend, isTyping }) {
           onKeyDown={handleKeyDown}
           placeholder={
             isTyping
-              ? "AgentWave is generating a response..."
-              : "Ask AgentWave anything..."
+              ? "Sweet Manager is generating a response..."
+              : "Ask Sweet Manager anything..."
           }
           rows={1}
           className="md:px-2 flex-1 bg-transparent outline-none resize-none text-base text-gray-700 placeholder-gray-400 leading-6 max-h-[168px] overflow-y-auto"

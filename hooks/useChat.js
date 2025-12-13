@@ -1,76 +1,71 @@
-import { useState, useCallback } from "react";
+"use client";
+import { useState, useRef, useEffect } from "react";
+import { Send } from "lucide-react";
 
-export default function useChat({ userId }) {
-  const [messages, setMessages] = useState([]);
-  const [extracted, setExtracted] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+export default function ChatInput({ onSend, isTyping }) {
+  const [text, setText] = useState("");
+  const textareaRef = useRef(null);
 
-  const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-
-  const sendMessage = useCallback(
-    async (text) => {
-      if (!text) return;
-
-      try {
-        setIsLoading(true);
-        setError("");
-
-        const userMsg = { id: crypto.randomUUID(), role: "user", text };
-        setMessages((prev) => [...prev, userMsg]);
-
-        // --- Guest user: mensaje fake ---
-        if (!userId || userId.startsWith("guest-")) {
-          const fakeReply = {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            text: "Thanks! Please register to unlock full AI capabilities.",
-          };
-          setTimeout(() => setMessages((prev) => [...prev, fakeReply]), 500);
-          return;
-        }
-
-        // --- Usuario registrado: enviar al backend ---
-        const response = await fetch(`${BASE_URL}/api/v1/chat/mission-vision`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId,
-            userMessage: text, // 🔑 backend espera `userMessage`
-          }),
-        });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Error");
-
-        const assistantMsg = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          text: data.reply,
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
-        setExtracted(data.extracted || {});
-      } catch (err) {
-        console.error("Chat Error:", err);
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [userId, BASE_URL]
-  );
-
-  const initMessages = useCallback((msgs) => {
-    if (!Array.isArray(msgs)) return;
-    setMessages(msgs);
-  }, []);
-
-  return {
-    messages,
-    extracted,
-    isLoading,
-    error,
-    sendMessage,
-    initMessages,
+  const handleSend = () => {
+    if (!text.trim() || isTyping) return;
+    onSend(text);
+    setText("");
   };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  // Auto-resize hasta 7 líneas
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = "auto";
+    const lineHeight = 20;
+    const maxHeight = lineHeight * 7;
+    textarea.style.height = Math.min(textarea.scrollHeight, maxHeight) + "px";
+  }, [text]);
+
+  const canSend = text.trim().length > 0 && !isTyping;
+
+  return (
+    <div className="w-full py-4 flex items-center gap-3">
+      {/* Textarea */}
+      <div className="bg-gray-100 flex items-center flex-1 rounded-2xl px-4 py-2">
+        <textarea
+          ref={textareaRef}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={
+            isTyping
+              ? "Sweet Manager is generating a response..."
+              : "Ask Sweet Manager anything..."
+          }
+          rows={1}
+          className="md:px-2 flex-1 bg-transparent outline-none resize-none text-base text-gray-700 placeholder-gray-400 leading-6 max-h-[168px] overflow-y-auto"
+        />
+      </div>
+
+      {/* Botón de enviar */}
+      <button
+        onClick={handleSend}
+        disabled={!canSend}
+        className={`
+          w-10 h-10 flex items-center justify-center rounded-full shadow-md transition
+          ${
+            !canSend
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+              : "bg-linear-to-r from-fuchsia-500 to-purple-600 text-white hover:opacity-90 transition hover:scale-105"
+          }
+        `}
+      >
+        <Send className="w-5 h-5" />
+      </button>
+    </div>
+  );
 }

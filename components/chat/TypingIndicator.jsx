@@ -13,7 +13,9 @@ export default function TypingIndicator() {
       <div className="bg-gray-100 rounded-2xl px-4 py-3 shadow-md rounded-bl-none">
         <div className="flex gap-2 items-center">
           <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
-          <span className="text-sm text-gray-500">AgentWave is working…</span>
+          <span className="text-sm text-gray-500">
+            Sweet Manager is working…
+          </span>
         </div>
       </div>
     </div>

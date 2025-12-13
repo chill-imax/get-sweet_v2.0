@@ -1,75 +1,91 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
-const authOptions = {
+export const authOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     }),
   ],
+
   session: { strategy: "jwt" },
   pages: { signIn: "/sign-in", error: "/sign-in" },
 
   callbacks: {
-    // 1. SIGN IN
+    /** -------------------------------------------------
+     * SIGNIN: solo autentica con el backend
+     --------------------------------------------------*/
     async signIn({ user, account }) {
       if (account?.provider === "google") {
         try {
-          const response = await fetch(
+          const tokenGoogle = account.id_token;
+
+          const res = await fetch(
             `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/google`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                token: account.id_token,
-                email: user.email,
-                name: user.name,
-                image: user.image,
-              }),
+              body: JSON.stringify({ token: tokenGoogle }),
             }
           );
 
-          if (!response.ok) return false;
+          if (!res.ok) return false;
 
-          const data = await response.json();
+          const data = await res.json();
 
           user.backendToken = data.token;
           user.dbId = data.user._id;
           user.onboardingCompleted = data.user.onboardingCompleted;
+          user.role = data.user.role;
 
           return true;
-        } catch (error) {
-          console.error("Error Google Auth:", error);
+        } catch (err) {
+          console.error("Google Auth Error:", err);
           return false;
         }
       }
+
       return true;
     },
 
-    // 2. JWT (AQUÍ ESTÁ EL CAMBIO CLAVE) 🟢
+    /** -------------------------------------------------
+     * JWT: guarda todo lo necesario en el token
+     --------------------------------------------------*/
     async jwt({ token, user, trigger, session }) {
-      // Caso A: Primer inicio de sesión
       if (user) {
         token.accessToken = user.backendToken;
         token.id = user.dbId;
         token.onboardingCompleted = user.onboardingCompleted;
+        token.role = user.role;
       }
 
-      // Caso B: Actualización manual desde el cliente (updateOnboarding)
-      if (trigger === "update" && session?.onboardingCompleted) {
-        token.onboardingCompleted = session.onboardingCompleted;
+      if (trigger === "update" && session?.user?.onboardingCompleted) {
+        token.onboardingCompleted = session.user.onboardingCompleted;
       }
 
       return token;
     },
 
-    // 3. SESSION
+    /** -------------------------------------------------
+     * SESSION: expone los datos al frontend
+     --------------------------------------------------*/
     async session({ session, token }) {
       session.user.accessToken = token.accessToken;
       session.user.id = token.id;
       session.user.onboardingCompleted = token.onboardingCompleted;
+      session.user.role = token.role;
       return session;
+    },
+
+    /** -------------------------------------------------
+     * REDIRECT 
+     --------------------------------------------------*/
+    async redirect({ baseUrl, url }) {
+      // Si la redirección es interna de NextAuth, dejarla pasar
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+
+      return url;
     },
   },
 };

@@ -31,11 +31,11 @@ export default function MessageBubble({ sender = "agent", text }) {
       >
         {/* Nombre del autor */}
         <p
-          className={`text-xs font-medium mb-2 ${
+          className={`text-xs font-bold mb-2 ${
             isUser ? "text-purple-200" : "text-gray-400"
           }`}
         >
-          {isUser ? "You" : "AgentWave"}
+          {isUser ? "You" : "Sweet Manager"}
         </p>
 
         {/* Contenido Markdown dentro de un div */}
