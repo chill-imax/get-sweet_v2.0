@@ -29,7 +29,7 @@ const FloatingChatIcon = () => {
           left: 0,
           right: windowSize.width - 80,
         }}
-        className="fixed bottom-6 right-6 w-16 h-16 rounded-full bg-linear-to-br from-purple-500 to-pink-500 shadow-lg flex items-center justify-center cursor-pointer z-50"
+        className="fixed bottom-6 right-6 w-16 h-16 rounded-full bg-linear-to-br from-purple-500 to-pink-500 shadow-lg flex items-center justify-center cursor-pointer z-20"
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
       >
