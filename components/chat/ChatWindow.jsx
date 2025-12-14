@@ -338,7 +338,7 @@ export default function ChatWindow({ activeContext }) {
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t border-gray-100 bg-white sticky bottom-0 z-50">
+      <div className="p-4 border-t border-gray-100 bg-white sticky bottom-0">
         <div className="max-w-4xl mx-auto">
           {error && (
             <div className="mb-2 p-2 bg-red-50 text-red-600 text-xs rounded text-center border border-red-100">
