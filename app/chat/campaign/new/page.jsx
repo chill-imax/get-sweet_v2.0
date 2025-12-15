@@ -1,4 +1,3 @@
-// app/chat/campaign/new/page.jsx
 "use client";
 
 import { useMemo, useState } from "react";
@@ -56,56 +55,20 @@ const CHANNELS = [
   { id: "social", label: "Social", icon: Smartphone },
 ];
 
-function CampaignCreationPlaceholder({ onBack }) {
+function CampaignCreationHelpCard() {
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex-1 p-6 overflow-y-auto">
-        <div className="max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-50 border border-purple-100 text-purple-700 text-xs font-bold">
-            <Sparkles className="w-4 h-4" />
-            Campaign setup (full page)
-          </div>
-
-          <h1 className="mt-4 text-2xl font-semibold text-gray-900">
-            Create a campaign
-          </h1>
-          <p className="mt-2 text-sm text-gray-600 leading-relaxed">
-            This replaces the old modal.
-            <br />
-            You’ll set a name, objective, audience, channels, and a few success
-            signals — then Sweet Manager will generate a strategy, messaging, and
-            a first task list for the campaign workspace.
-          </p>
-
-          <div className="mt-6 bg-gray-50 border border-gray-200 rounded-2xl p-4">
-            <div className="font-semibold text-gray-800">What happens next?</div>
-            <ul className="mt-2 text-sm text-gray-600 space-y-1 list-disc pl-5">
-              <li>We create the campaign in your backend (same endpoint as the modal).</li>
-              <li>You’re redirected to <span className="font-mono">/chat/campaign/[id]</span>.</li>
-              <li>The right-side panel appears (campaign mode) for quick references.</li>
-              <li>The middle becomes the campaign workspace (chat + tasks + assets).</li>
-            </ul>
-
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={onBack}
-                className="h-10 px-4 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-800 hover:bg-gray-100 inline-flex items-center gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to campaigns
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-6 bg-white border border-gray-200 rounded-2xl p-4">
-            <div className="font-semibold text-gray-800">Placeholder copy you can keep</div>
-            <p className="mt-2 text-sm text-gray-600">
-              “Give this campaign a clear objective and a single primary KPI. Sweet Manager will
-              generate an initial campaign plan: target message angles, creative ideas, channel
-              suggestions, and a first week of tasks.”
-            </p>
-          </div>
-        </div>
+    <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
+      <div className="font-semibold text-gray-800">What happens next?</div>
+      <ul className="mt-2 text-sm text-gray-600 space-y-1 list-disc pl-5">
+        <li>We create the campaign in your backend (same endpoint as the modal).</li>
+        <li>
+          You’re redirected to <span className="font-mono">/chat/campaign/[id]</span>.
+        </li>
+        <li>The right-side panel appears (campaign mode) for quick references.</li>
+        <li>The middle becomes the campaign workspace (generators + drafts).</li>
+      </ul>
+      <div className="mt-3 text-xs text-gray-500 leading-snug">
+        For now, the backend can ignore new fields until you add support — this flow still works.
       </div>
     </div>
   );
@@ -117,15 +80,20 @@ export default function NewCampaignPage() {
 
   const [isLeftOpen, setIsLeftOpen] = useState(false);
 
-  // form state (front-end first; backend later can expand)
+  // Required/compatible with existing modal
   const [name, setName] = useState("");
   const [tone, setTone] = useState("Professional");
 
-  // optional fields to guide the future campaign experience
+  // Extra fields (safe placeholders; backend can ignore)
   const [objective, setObjective] = useState("leads");
   const [channels, setChannels] = useState(["web"]);
   const [audience, setAudience] = useState("");
   const [primaryKpi, setPrimaryKpi] = useState("");
+
+  // Optional placeholders you can wire later
+  const [landingUrl, setLandingUrl] = useState("");
+  const [geo, setGeo] = useState("");
+  const [budget, setBudget] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -146,19 +114,27 @@ export default function NewCampaignPage() {
       setError("Please enter a campaign name.");
       return;
     }
+    if (!token) {
+      setError("You must be signed in to create a campaign.");
+      return;
+    }
 
     setLoading(true);
     try {
-      // ✅ Keep compatibility with your current backend shape:
-      // old modal: { name, tone }
-      // (We pass extra fields too; backend can ignore until you add support.)
+      // ✅ Still compatible with your current backend: { name, tone }
+      // Extra fields can be ignored until you expand your schema.
       const payload = {
         name: name.trim(),
         tone,
+
+        // placeholders / future schema
         objective,
         channels,
         audience: audience.trim(),
         primaryKpi: primaryKpi.trim(),
+        landingUrl: landingUrl.trim(),
+        geo: geo.trim(),
+        budget: budget.trim(),
       };
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/campaigns`, {
@@ -226,6 +202,7 @@ export default function NewCampaignPage() {
 
             {/* FORM */}
             <form onSubmit={handleCreate} className="mt-6 space-y-4">
+              {/* Basics */}
               <div className="bg-white border border-gray-200 rounded-2xl p-5">
                 <div className="grid gap-4">
                   <div>
@@ -236,7 +213,7 @@ export default function NewCampaignPage() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g., Winter Promo 2025"
-                      className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm outline-none focus:ring-2 focus:ring-purple-200"
+                      className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-purple-200"
                       autoFocus
                     />
                   </div>
@@ -249,7 +226,7 @@ export default function NewCampaignPage() {
                       <select
                         value={tone}
                         onChange={(e) => setTone(e.target.value)}
-                        className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm outline-none focus:ring-2 focus:ring-purple-200"
+                        className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 outline-none focus:ring-2 focus:ring-purple-200"
                       >
                         {TONES.map((t) => (
                           <option key={t} value={t}>
@@ -267,7 +244,7 @@ export default function NewCampaignPage() {
                         value={primaryKpi}
                         onChange={(e) => setPrimaryKpi(e.target.value)}
                         placeholder="e.g., Leads/week, CAC, CTR, ROAS"
-                        className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm outline-none focus:ring-2 focus:ring-purple-200"
+                        className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-purple-200"
                       />
                     </div>
                   </div>
@@ -302,7 +279,9 @@ export default function NewCampaignPage() {
                         <div className="flex items-start gap-3">
                           <div
                             className={`w-9 h-9 rounded-xl flex items-center justify-center border ${
-                              active ? "bg-white border-purple-200" : "bg-gray-50 border-gray-200"
+                              active
+                                ? "bg-white border-purple-200"
+                                : "bg-gray-50 border-gray-200"
                             }`}
                           >
                             <Icon className="w-4 h-4 text-gray-800" />
@@ -333,7 +312,7 @@ export default function NewCampaignPage() {
                       value={audience}
                       onChange={(e) => setAudience(e.target.value)}
                       placeholder="e.g., Homeowners in SF, SaaS marketers, etc."
-                      className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm outline-none focus:ring-2 focus:ring-purple-200"
+                      className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-purple-200"
                     />
                     <p className="mt-2 text-xs text-gray-500">
                       If blank, we’ll use your brand profile audience.
@@ -372,6 +351,54 @@ export default function NewCampaignPage() {
                 </div>
               </div>
 
+              {/* Extra placeholders (optional) */}
+              <div className="bg-white border border-gray-200 rounded-2xl p-5">
+                <div className="text-sm font-semibold text-gray-800">
+                  Optional setup (placeholder)
+                </div>
+                <p className="mt-1 text-sm text-gray-600">
+                  These can feed your agents later. Backend can ignore for now.
+                </p>
+
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                      Landing URL
+                    </label>
+                    <input
+                      value={landingUrl}
+                      onChange={(e) => setLandingUrl(e.target.value)}
+                      placeholder="https://example.com"
+                      className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-purple-200"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                      Geo
+                    </label>
+                    <input
+                      value={geo}
+                      onChange={(e) => setGeo(e.target.value)}
+                      placeholder="e.g., Bay Area"
+                      className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-purple-200"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                      Budget
+                    </label>
+                    <input
+                      value={budget}
+                      onChange={(e) => setBudget(e.target.value)}
+                      placeholder="e.g., $50/day"
+                      className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-purple-200"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {error ? (
                 <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
                   {error}
@@ -404,9 +431,8 @@ export default function NewCampaignPage() {
               </div>
             </form>
 
-            {/* Placeholder explanation block (optional to keep) */}
-            <div className="mt-10">
-              <CampaignCreationPlaceholder onBack={() => router.push("/chat")} />
+            <div className="mt-8">
+              <CampaignCreationHelpCard />
             </div>
           </div>
         </div>

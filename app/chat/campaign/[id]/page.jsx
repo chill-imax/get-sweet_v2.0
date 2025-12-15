@@ -39,6 +39,7 @@ export default function CampaignPage() {
         />
 
         <div className="flex-1 min-h-0">
+          {/* ✅ This is the campaign generator/workspace */}
           <CampaignAdsDraftPanel campaignId={activeContext} />
         </div>
       </div>
