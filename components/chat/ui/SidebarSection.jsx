@@ -1,50 +1,104 @@
-import { ChevronRight, ChevronDown, Pencil } from "lucide-react";
-import React from "react";
+"use client";
 
-export const SidebarSection = ({
+import { ChevronDown, Pencil } from "lucide-react";
+
+export function SidebarSection({
   title,
   isOpen,
   onToggle,
   onEdit,
+  preview,
+  previewType,     // "text" | "colors"
+  previewData,     // used when previewType === "colors"
   children,
-}) => (
-  <div className="space-y-2">
-    <div className="flex items-center justify-between">
-      <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-        {title}
-      </span>
-      <div className="flex items-center gap-2">
-        {onEdit && (
-          <button
-            onClick={onEdit}
-            title="Edit Section"
-            className="p-1 rounded hover:bg-gray-200 text-gray-500 transition-colors"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-        )}
-        <button
-          className="p-1 rounded hover:bg-gray-200 text-gray-500 transition-colors"
-          onClick={onToggle}
-        >
-          {isOpen ? (
-            <ChevronDown className="w-4 h-4" />
-          ) : (
-            <ChevronRight className="w-4 h-4" />
-          )}
-        </button>
-      </div>
-    </div>
-
-    <div
-      className={`transition-all duration-300 ${isOpen ? "block" : "hidden"}`}
-    >
+}) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      {/* Header */}
       <div
-        className="p-4 bg-white border border-gray-200 rounded-xl space-y-4 shadow-sm cursor-text hover:border-blue-300 transition"
-        onClick={onEdit}
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        aria-label={`${title} section`}
+        onClick={onToggle}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle?.();
+          }
+        }}
+        className="w-full p-4 flex items-start justify-between gap-3 cursor-pointer select-none"
       >
-        {children}
+        {/* Left */}
+        <div className="min-w-0">
+          <h4 className="text-sm font-bold text-gray-900">{title}</h4>
+
+          {/* TEXT PREVIEW */}
+          {!isOpen && preview && previewType !== "colors" && (
+            <p className="mt-1 text-xs text-gray-500 leading-snug line-clamp-2">
+              {preview}
+            </p>
+          )}
+
+          {/* COLOR PREVIEW */}
+          {!isOpen &&
+            previewType === "colors" &&
+            Array.isArray(previewData) &&
+            previewData.length > 0 && (
+              <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                {previewData.slice(0, 6).map((color, idx) => (
+                  <span
+                    key={idx}
+                    className="w-4 h-4 rounded-full border border-gray-300"
+                    style={{ backgroundColor: color }}
+                    title={color}
+                  />
+                ))}
+
+                {previewData.length > 6 && (
+                  <span className="text-[10px] text-gray-400 ml-1">
+                    +{previewData.length - 6}
+                  </span>
+                )}
+              </div>
+            )}
+        </div>
+
+        {/* Right */}
+        <div className="flex items-center gap-2 shrink-0">
+          {onEdit && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit?.();
+              }}
+              className="h-8 px-2 rounded-lg border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50"
+              aria-label={`Edit ${title}`}
+              title={`Edit ${title}`}
+            >
+              <span className="inline-flex items-center gap-1">
+                <Pencil className="w-3 h-3" />
+                Edit
+              </span>
+            </button>
+          )}
+
+          <ChevronDown
+            className={`w-4 h-4 text-gray-400 transition-transform ${
+              isOpen ? "rotate-180" : "rotate-0"
+            }`}
+            aria-hidden="true"
+          />
+        </div>
       </div>
+
+      {/* Body */}
+      {isOpen && (
+        <div className="p-4 pt-0 space-y-4">
+          {children}
+        </div>
+      )}
     </div>
-  </div>
-);
+  );
+}

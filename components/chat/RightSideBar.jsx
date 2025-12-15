@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Layout, X, Save, Loader2, PlusCircle, Sparkles } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
 import { useAuth } from "@/context/useContext";
@@ -8,7 +8,7 @@ import { SidebarSection } from "./ui/SidebarSection";
 import { EditableField } from "./ui/EditableField";
 import { EditableTextArea } from "./ui/EditableTextArea";
 import { EditableList } from "./ui/EditableList";
-import { EditableColorPalette } from "./ui/EditableColorPalette";
+import EditableColorPalette from "./ui/EditableColorPalette";
 import { EditableSelect } from "./ui/EditableSelect";
 import { INDUSTRIES } from "../utils/industries";
 import CreateCampaignModal from "./modals/CreateCampaignModal";
@@ -60,17 +60,67 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
     stopEditingAll();
   };
 
-  // Verifica si los campos críticos tienen contenido
+  /* ---------------- Brand readiness (for the banner) ---------------- */
   const isBrandReady =
-    companyData?.brandName?.length > 0 &&
-    companyData?.industry?.length > 0 &&
-    companyData?.targetAudience?.length > 5 &&
-    companyData?.mission?.length > 5;
-  companyData?.vision?.length > 5;
-  companyData?.services?.length > 5;
-  companyData?.diff?.length > 5;
-  companyData?.tone?.length > 2;
-  companyData?.brandVoice?.length > 4;
+    (formData?.brandName || "").trim().length > 0 &&
+    (formData?.industry || "").trim().length > 0 &&
+    (formData?.targetAudience || "").trim().length > 5 &&
+    (formData?.mission || "").trim().length > 5;
+
+  /* ---------------- PREVIEWS (collapsed summaries) ---------------- */
+  const previews = useMemo(() => {
+    const brandName = formData?.brandName || "Add your brand name";
+    const industry = formData?.industry ? `Industry: ${formData.industry}` : "";
+    const aka = formData?.aka ? `AKA: ${formData.aka}` : "";
+
+    const infoPreview = [brandName, aka, industry].filter(Boolean).join(" • ");
+
+    const missionPreview =
+      formData?.mission?.trim() ||
+      formData?.vision?.trim() ||
+      "Add your mission and vision";
+
+    const servicesArr = Array.isArray(formData?.services) ? formData.services : [];
+    const servicesPreview =
+      servicesArr.length > 0
+        ? `${servicesArr.length} services: ${servicesArr.slice(0, 2).join(", ")}${
+            servicesArr.length > 2 ? "…" : ""
+          }`
+        : "Add the services you offer";
+
+    const diffArr = Array.isArray(formData?.differentiators)
+      ? formData.differentiators
+      : [];
+    const diffPreview =
+      diffArr.length > 0
+        ? `${diffArr[0]}${diffArr.length > 1 ? "…" : ""}`
+        : "Add what makes you different";
+
+    const voiceArr = Array.isArray(formData?.values) ? formData.values : [];
+    const voicePreview =
+      voiceArr.length > 0
+        ? `Voice: ${voiceArr.slice(0, 3).join(", ")}${
+            voiceArr.length > 3 ? "…" : ""
+          }`
+        : "Add brand voice traits (e.g., friendly, confident)";
+
+    const colorsArr = Array.isArray(formData?.colors) ? formData.colors : [];
+    const colorsPreview =
+      colorsArr.length > 0
+        ? `${colorsArr.length} colors: ${colorsArr.slice(0, 3).join(", ")}${
+            colorsArr.length > 3 ? "…" : ""
+          }`
+        : "Add brand colors";
+
+    return {
+      infoPreview,
+      missionPreview,
+      servicesPreview,
+      diffPreview,
+      voicePreview,
+      colorsPreview,
+    };
+  }, [formData]);
 
   /* ---------------- SAVE ---------------- */
   const handleSave = async () => {
@@ -85,6 +135,8 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
         acc[key] = value
           .map((v) => (typeof v === "string" ? v.trim() : v))
           .filter(Boolean);
+      } else if (value && typeof value === "object") {
+        acc[key] = value;
       }
       return acc;
     }, {});
@@ -105,17 +157,12 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
       if (!res.ok) throw new Error("Save failed");
 
       const json = await res.json();
-      // Ajuste por si el backend devuelve data o companyData
       const updated = json.data || json.companyData;
 
       updateCompanyState(updated);
       stopEditingAll();
 
-      setToast({
-        type: "success",
-        message: "Your changes have been saved.",
-      });
-
+      setToast({ type: "success", message: "Your changes have been saved." });
       setTimeout(() => setToast(null), 2000);
     } catch (err) {
       console.error(err);
@@ -141,10 +188,8 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
   return (
     <>
       <div
-        className={`fixed inset-y-0 right-0 z-50 w-80 bg-gray-50 border-l flex flex-col transition-transform duration-300 ease-in-out
-        ${
-          isOpen ? "translate-x-0" : "translate-x-full"
-        } lg:relative lg:translate-x-0`}
+        className={`fixed inset-y-0 right-0 z-50 w-80 bg-gray-50 border-l flex flex-col transition-transform
+        ${isOpen ? "translate-x-0" : "translate-x-full"} lg:relative lg:translate-x-0`}
       >
         {/* HEADER */}
         <div className="h-16 border-b flex items-center justify-between px-5 bg-white sticky top-0 z-10">
@@ -178,6 +223,7 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
             <button
               onClick={() => setIsOpen(false)}
               className="lg:hidden text-gray-400 hover:bg-gray-100 p-1 rounded-full"
+              aria-label="Close right sidebar"
             >
               <X className="w-5 h-5" />
             </button>
@@ -199,21 +245,20 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
         )}
 
         {/* CONTENT */}
-        <div className="p-5 space-y-8 overflow-y-auto flex-1">
+        <div className="p-5 space-y-4 overflow-y-auto flex-1">
           {activeContext === "general" && (
             <>
+              {/* Suggestions / CTA */}
               <div className="space-y-2">
                 {isBrandReady ? (
-                  // OPCIÓN A: MARCA LISTA -> SUGERIR CAMPAÑA
-                  <div className="p-4 bg-green-50 border border-green-100 rounded-xl shadow-sm">
+                  <div className="p-4 bg-green-50 border border-green-100 rounded-xl">
                     <h4 className="text-xs font-bold text-green-800 mb-2 flex items-center gap-1">
                       <Sparkles className="w-3 h-3" />
                       Ready for Action!
                     </h4>
                     <p className="text-xs text-green-700 leading-snug mb-3">
-                      Your Brand Identity is solid. It&apos;s time to launch
-                      your first marketing campaign to reach that target
-                      audience.
+                      Your Brand Identity is solid. It&apos;s time to launch your
+                      first marketing campaign to reach that target audience.
                     </p>
                     <button
                       onClick={() => setIsCampaignModalOpen(true)}
@@ -224,26 +269,26 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                     </button>
                   </div>
                 ) : (
-                  // OPCIÓN B: MARCA INCOMPLETA -> SUGERIR COMPLETAR
                   <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl">
                     <h4 className="text-xs font-bold text-blue-800 mb-1 flex items-center gap-1">
                       <Sparkles className="w-3 h-3" />
                       Sweet suggestions
                     </h4>
                     <p className="text-xs text-blue-600 leading-snug">
-                      Verify your brand profile (Mission, Vision & Target
-                      Audience). Once completed, you can start creating
-                      AI-powered campaigns.
+                      Verify your brand profile (Mission, Vision & Target Audience).
+                      Once completed, you can start creating AI-powered campaigns.
                     </p>
                   </div>
                 )}
               </div>
+
               {/* INFO */}
               <SidebarSection
                 title="Info"
                 isOpen={sections.info}
                 onToggle={() => toggleSection("info")}
                 onEdit={() => setEditingSection("info")}
+                preview={previews.infoPreview}
               >
                 <EditableField
                   label="Brand Name"
@@ -263,7 +308,6 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                   placeholder="Sweet Manager"
                 />
 
-                {/* 👇 INTEGRACIÓN DEL SELECT MODERNO */}
                 {isEditing("info") ? (
                   <EditableSelect
                     label="Industry"
@@ -277,7 +321,7 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                   <EditableField
                     label="Industry"
                     value={formData.industry}
-                    isEditing={false} // Modo lectura
+                    isEditing={false}
                     forceLabel
                   />
                 )}
@@ -288,11 +332,11 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                   isEditing={isEditing("info")}
                   onChange={(val) => handleChange("targetAudience", val)}
                   forceLabel
-                  placeholder="Women aged 25-40"
+                  placeholder="Who is this for?"
                 />
 
                 <EditableField
-                  label="website"
+                  label="Website"
                   value={formData.website}
                   isEditing={isEditing("info")}
                   onChange={(val) => handleChange("website", val)}
@@ -307,6 +351,7 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                 isOpen={sections.mission}
                 onToggle={() => toggleSection("mission")}
                 onEdit={() => setEditingSection("mission")}
+                preview={previews.missionPreview}
               >
                 <EditableTextArea
                   label="Mission"
@@ -330,6 +375,7 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                 isOpen={sections.services}
                 onToggle={() => toggleSection("services")}
                 onEdit={() => setEditingSection("services")}
+                preview={previews.servicesPreview}
               >
                 <EditableList
                   items={formData.services}
@@ -344,6 +390,7 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                 isOpen={sections.diff}
                 onToggle={() => toggleSection("diff")}
                 onEdit={() => setEditingSection("diff")}
+                preview={previews.diffPreview}
               >
                 <EditableList
                   items={formData.differentiators}
@@ -358,6 +405,7 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                 isOpen={sections.voice}
                 onToggle={() => toggleSection("voice")}
                 onEdit={() => setEditingSection("voice")}
+                preview={previews.voicePreview}
               >
                 <EditableList
                   items={formData.values}
@@ -372,6 +420,8 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                 isOpen={sections.colors}
                 onToggle={() => toggleSection("colors")}
                 onEdit={() => setEditingSection("colors")}
+                previewType="colors"
+                previewData={formData.colors}
               >
                 <EditableColorPalette
                   colors={formData.colors}
@@ -391,6 +441,7 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
           onClick={() => setIsOpen(false)}
         />
       )}
+
       <CreateCampaignModal
         isOpen={isCampaignModalOpen}
         onClose={() => setIsCampaignModalOpen(false)}
