@@ -91,8 +91,6 @@ export default function RightSidebar({
     close();
   };
 
-  // If you ever want to hide on non-campaign view, you can early-return null.
-  // But right now you’re only mounting this on /chat/campaign/[id], so we keep it.
   const showCampaignUI = mode === "campaign";
 
   return (
@@ -188,7 +186,9 @@ export default function RightSidebar({
               />
               <InfoRow
                 label="Timeframe"
-                value={campaign?.timeframe || campaign?.goalTimeframe || "Not set"}
+                value={
+                  campaign?.timeframe || campaign?.goalTimeframe || "Not set"
+                }
               />
               <InfoRow
                 label="Primary channel"
@@ -245,7 +245,10 @@ export default function RightSidebar({
                   label="Mission"
                   value={companyData?.mission || "Not set"}
                 />
-                <InfoRow label="Vision" value={companyData?.vision || "Not set"} />
+                <InfoRow
+                  label="Vision"
+                  value={companyData?.vision || "Not set"}
+                />
                 <InfoRow
                   label="Primary goal"
                   value={companyData?.primaryGoal || "Not set"}
@@ -267,7 +270,7 @@ export default function RightSidebar({
         )}
       </div>
 
-      {/* MOBILE OVERLAY handled by parent layout; sidebar stays as-is */}
+      {/* Mobile overlay handled by parent layout; sidebar stays as-is */}
     </div>
   );
 }
