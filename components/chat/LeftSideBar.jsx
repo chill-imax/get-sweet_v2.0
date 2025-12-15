@@ -14,7 +14,6 @@ import {
 import { useAuth } from "@/context/useContext";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import CreateCampaignModal from "./modals/CreateCampaignModal";
 
 export default function LeftSidebar({ isOpen, setIsOpen }) {
   const { user, logout, token } = useAuth();
@@ -22,48 +21,34 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
   const pathname = usePathname();
 
   const [campaignList, setCampaignList] = useState([]);
-  const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
 
-  const getInitials = (name) =>
-    name ? name.substring(0, 2).toUpperCase() : "U";
+  const getInitials = (name) => (name ? name.substring(0, 2).toUpperCase() : "U");
 
-  // ----------------------------------------------------
   // URL-derived active state
-  // ----------------------------------------------------
   const activeCampaignId = useMemo(() => {
-    // supports: /chat/campaign/:id (and anything nested under it)
     if (!pathname) return null;
     if (!pathname.startsWith("/chat/campaign/")) return null;
+
     const rest = pathname.replace("/chat/campaign/", "");
     const id = rest.split("/")[0];
-    return id || null;
+    if (!id || id === "new") return null; // don't treat /new as a campaign
+    return id;
   }, [pathname]);
 
   const isOnBrandSetup = useMemo(() => {
-    // Brand setup is the /chat root (or anything you consider "general")
-    // Adjust if you later add /chat/brand-confirm, etc.
     return pathname === "/chat" || pathname === "/chat/";
   }, [pathname]);
 
-  // ----------------------------------------------------
-  // Fetch campaigns
-  // ----------------------------------------------------
   const getCampaignsList = async () => {
     if (!token) return;
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/campaigns`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/campaigns`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       if (!res.ok) return;
 
       const data = await res.json();
-
-      // Support common response shapes:
-      // - array
-      // - { data: [...] }
-      // - { campaigns: [...] }
       const list = Array.isArray(data)
         ? data
         : Array.isArray(data?.data)
@@ -83,25 +68,20 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  const handleCampaignCreated = () => {
-    getCampaignsList();
-    setIsCampaignModalOpen(false);
-  };
-
-  // ----------------------------------------------------
-  // Navigation helpers
-  // ----------------------------------------------------
-  const closeSidebar = () => setIsOpen?.(false);
-
-  const goBrandSetup = () => {
+  function navigateToBrand() {
     router.push("/chat");
-    closeSidebar();
-  };
+    setIsOpen?.(false);
+  }
 
-  const goCampaign = (id) => {
+  function navigateToCampaign(id) {
     router.push(`/chat/campaign/${id}`);
-    closeSidebar();
-  };
+    setIsOpen?.(false);
+  }
+
+  function navigateToNewCampaign() {
+    router.push("/chat/campaign/new");
+    setIsOpen?.(false);
+  }
 
   return (
     <>
@@ -116,17 +96,15 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
       >
         {/* Header */}
         <div className="p-5 border-b border-slate-800 flex items-center justify-between shrink-0">
-          <button onClick={goBrandSetup} className="flex items-center gap-2">
+          <button onClick={() => router.push("/chat")} className="flex items-center gap-2">
             <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-lg tracking-tight">
-              Sweet Manager
-            </span>
+            <span className="font-bold text-lg tracking-tight">Sweet Manager</span>
           </button>
 
           <button
-            onClick={closeSidebar}
+            onClick={() => setIsOpen(false)}
             className="lg:hidden text-slate-400 hover:text-white"
             aria-label="Close sidebar"
           >
@@ -134,7 +112,7 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
           </button>
         </div>
 
-        {/* MAIN NAV (scrollable) */}
+        {/* MAIN NAV */}
         <div className="flex-1 overflow-y-auto py-4">
           {/* BRAND */}
           <div className="px-4 text-xs font-semibold text-slate-500 uppercase mb-2">
@@ -143,7 +121,7 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
 
           <nav className="space-y-1 px-2">
             <button
-              onClick={goBrandSetup}
+              onClick={navigateToBrand}
               className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                 isOnBrandSetup
                   ? "bg-purple-600 text-white"
@@ -162,7 +140,7 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
               className="text-slate-400 hover:text-white transition-colors p-1 rounded hover:bg-slate-800"
               title="Create campaign"
               aria-label="Create campaign"
-              onClick={() => setIsCampaignModalOpen(true)}
+              onClick={navigateToNewCampaign}
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -170,19 +148,17 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
 
           <nav className="space-y-1 px-2">
             {campaignList.length === 0 ? (
-              <p className="px-3 text-xs text-slate-600 italic">
-                No campaigns yet.
-              </p>
+              <p className="px-3 text-xs text-slate-600 italic">No campaigns yet.</p>
             ) : (
               campaignList.map((c) => {
                 const id = c?._id || c?.id;
                 const name = c?.name || "Untitled campaign";
-                const isActive = Boolean(id) && activeCampaignId === String(id);
+                const isActive = activeCampaignId === String(id);
 
                 return (
                   <button
                     key={id}
-                    onClick={() => goCampaign(id)}
+                    onClick={() => navigateToCampaign(id)}
                     className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                       isActive
                         ? "bg-purple-600 text-white"
@@ -209,13 +185,9 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
 
         {/* FIXED BOTTOM */}
         <div className="shrink-0 border-t border-slate-800">
-          {/* Settings */}
           <div className="p-2">
             <button
-              onClick={() => {
-                router.push("/settings");
-                closeSidebar();
-              }}
+              onClick={() => router.push("/settings")}
               className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
             >
               <Settings className="w-4 h-4" />
@@ -223,7 +195,6 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
             </button>
           </div>
 
-          {/* User */}
           <div className="p-4 border-t border-slate-800">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -262,10 +233,7 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
                 </button>
               ) : (
                 <button
-                  onClick={() => {
-                    router.push("/sign-in");
-                    closeSidebar();
-                  }}
+                  onClick={() => router.push("/sign-in")}
                   className="p-2 text-slate-400 hover:text-green-400 hover:bg-slate-800 rounded-lg transition-colors"
                   title="Sign in"
                   aria-label="Sign in"
@@ -278,18 +246,12 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
         </div>
       </div>
 
-      {/* Mobile overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-          onClick={closeSidebar}
+          onClick={() => setIsOpen(false)}
         />
       )}
-
-      <CreateCampaignModal
-        isOpen={isCampaignModalOpen}
-        onClose={handleCampaignCreated}
-      />
     </>
   );
 }
