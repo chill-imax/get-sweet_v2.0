@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Layout, X, Save, Loader2 } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
 import { useAuth } from "@/context/useContext";
@@ -55,6 +55,59 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
     stopEditingAll();
   };
 
+  /* ---------------- PREVIEWS (collapsed summaries) ---------------- */
+  const previews = useMemo(() => {
+    const brandName = formData?.brandName || "Add your brand name";
+    const industry = formData?.industry ? `Industry: ${formData.industry}` : "";
+    const aka = formData?.aka ? `AKA: ${formData.aka}` : "";
+
+    const infoPreview = [brandName, aka, industry].filter(Boolean).join(" • ");
+
+    const missionPreview =
+      formData?.mission?.trim() ||
+      formData?.vision?.trim() ||
+      "Add your mission and vision";
+
+    const servicesArr = Array.isArray(formData?.services) ? formData.services : [];
+    const servicesPreview =
+      servicesArr.length > 0
+        ? `${servicesArr.length} services: ${servicesArr.slice(0, 2).join(", ")}${
+            servicesArr.length > 2 ? "…" : ""
+          }`
+        : "Add the services you offer";
+
+    const diffArr = Array.isArray(formData?.differentiators)
+      ? formData.differentiators
+      : [];
+    const diffPreview =
+      diffArr.length > 0
+        ? `${diffArr[0]}${diffArr.length > 1 ? "…" : ""}`
+        : "Add what makes you different";
+
+    const voiceArr = Array.isArray(formData?.values) ? formData.values : [];
+    const voicePreview =
+      voiceArr.length > 0
+        ? `Voice: ${voiceArr.slice(0, 3).join(", ")}${voiceArr.length > 3 ? "…" : ""}`
+        : "Add brand voice traits (e.g., friendly, confident)";
+
+    const colorsArr = Array.isArray(formData?.colors) ? formData.colors : [];
+    const colorsPreview =
+      colorsArr.length > 0
+        ? `${colorsArr.length} colors: ${colorsArr.slice(0, 3).join(", ")}${
+            colorsArr.length > 3 ? "…" : ""
+          }`
+        : "Add brand colors";
+
+    return {
+      infoPreview,
+      missionPreview,
+      servicesPreview,
+      diffPreview,
+      voicePreview,
+      colorsPreview,
+    };
+  }, [formData]);
+
   /* ---------------- SAVE ---------------- */
   const handleSave = async () => {
     setIsSaving(true);
@@ -68,6 +121,8 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
         acc[key] = value
           .map((v) => (typeof v === "string" ? v.trim() : v))
           .filter(Boolean);
+      } else if (value && typeof value === "object") {
+        acc[key] = value;
       }
       return acc;
     }, {});
@@ -93,11 +148,7 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
       updateCompanyState(updated);
       stopEditingAll();
 
-      setToast({
-        type: "success",
-        message: "Your changes have been saved.",
-      });
-
+      setToast({ type: "success", message: "Your changes have been saved." });
       setTimeout(() => setToast(null), 2000);
     } catch (err) {
       console.error(err);
@@ -124,9 +175,7 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
     <>
       <div
         className={`fixed inset-y-0 right-0 z-50 w-80 bg-gray-50 border-l flex flex-col transition-transform
-        ${
-          isOpen ? "translate-x-0" : "translate-x-full"
-        } lg:relative lg:translate-x-0`}
+        ${isOpen ? "translate-x-0" : "translate-x-full"} lg:relative lg:translate-x-0`}
       >
         {/* HEADER */}
         <div className="h-16 border-b flex items-center justify-between px-5 bg-white sticky top-0 z-10">
@@ -181,7 +230,7 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
         )}
 
         {/* CONTENT */}
-        <div className="p-5 space-y-8 overflow-y-auto flex-1">
+        <div className="p-5 space-y-4 overflow-y-auto flex-1">
           {activeContext === "general" && (
             <>
               {/* INFO */}
@@ -190,6 +239,7 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                 isOpen={sections.info}
                 onToggle={() => toggleSection("info")}
                 onEdit={() => setEditingSection("info")}
+                preview={previews.infoPreview}
               >
                 <EditableField
                   label="Brand Name"
@@ -213,7 +263,7 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                   isEditing={isEditing("info")}
                   onChange={(val) => handleChange("industry", val)}
                   forceLabel
-                  placeholder="Saas, Marketing"
+                  placeholder="SaaS, Marketing"
                 />
               </SidebarSection>
 
@@ -223,6 +273,7 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                 isOpen={sections.mission}
                 onToggle={() => toggleSection("mission")}
                 onEdit={() => setEditingSection("mission")}
+                preview={previews.missionPreview}
               >
                 <EditableTextArea
                   label="Mission"
@@ -246,6 +297,7 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                 isOpen={sections.services}
                 onToggle={() => toggleSection("services")}
                 onEdit={() => setEditingSection("services")}
+                preview={previews.servicesPreview}
               >
                 <EditableList
                   items={formData.services}
@@ -260,6 +312,7 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                 isOpen={sections.diff}
                 onToggle={() => toggleSection("diff")}
                 onEdit={() => setEditingSection("diff")}
+                preview={previews.diffPreview}
               >
                 <EditableList
                   items={formData.differentiators}
@@ -274,6 +327,7 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                 isOpen={sections.voice}
                 onToggle={() => toggleSection("voice")}
                 onEdit={() => setEditingSection("voice")}
+                preview={previews.voicePreview}
               >
                 <EditableList
                   items={formData.values}
@@ -288,6 +342,7 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                 isOpen={sections.colors}
                 onToggle={() => toggleSection("colors")}
                 onEdit={() => setEditingSection("colors")}
+                preview={previews.colorsPreview}
               >
                 <EditableColorPalette
                   colors={formData.colors}
