@@ -23,6 +23,7 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
   const [sections, setSections] = useState({
     info: true,
     mission: false,
+    goals: false, // ✅ NEW
     services: false,
     diff: false,
     voice: false,
@@ -37,7 +38,6 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
   const [editingSection, setEditingSection] = useState(null);
   const isEditing = (key) => editingSection === key;
   const hasEditing = Boolean(editingSection);
-
   const stopEditingAll = () => setEditingSection(null);
 
   /* ---------------- FORM STATE ---------------- */
@@ -72,13 +72,23 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
     const brandName = formData?.brandName || "Add your brand name";
     const industry = formData?.industry ? `Industry: ${formData.industry}` : "";
     const aka = formData?.aka ? `AKA: ${formData.aka}` : "";
-
     const infoPreview = [brandName, aka, industry].filter(Boolean).join(" • ");
 
     const missionPreview =
       formData?.mission?.trim() ||
       formData?.vision?.trim() ||
       "Add your mission and vision";
+
+    // ✅ NEW: Goals preview
+    const primaryGoal =
+      (formData?.primaryGoal || "").trim() || "Add your primary goal";
+    const goalsArr = Array.isArray(formData?.goals) ? formData.goals : [];
+    const goalsPreview =
+      goalsArr.length > 0
+        ? `${primaryGoal} • ${goalsArr.slice(0, 2).join(", ")}${
+            goalsArr.length > 2 ? "…" : ""
+          }`
+        : primaryGoal;
 
     const servicesArr = Array.isArray(formData?.services) ? formData.services : [];
     const servicesPreview =
@@ -115,6 +125,7 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
     return {
       infoPreview,
       missionPreview,
+      goalsPreview, // ✅ NEW
       servicesPreview,
       diffPreview,
       voicePreview,
@@ -257,8 +268,9 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                       Ready for Action!
                     </h4>
                     <p className="text-xs text-green-700 leading-snug mb-3">
-                      Your Brand Identity is solid. It&apos;s time to launch your
-                      first marketing campaign to reach that target audience.
+                      Your Brand Identity is solid. It&apos;s time to launch
+                      your first marketing campaign to reach that target
+                      audience.
                     </p>
                     <button
                       onClick={() => setIsCampaignModalOpen(true)}
@@ -275,8 +287,9 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                       Sweet suggestions
                     </h4>
                     <p className="text-xs text-blue-600 leading-snug">
-                      Verify your brand profile (Mission, Vision & Target Audience).
-                      Once completed, you can start creating AI-powered campaigns.
+                      Verify your brand profile (Mission, Vision & Target
+                      Audience). Once completed, you can start creating
+                      AI-powered campaigns.
                     </p>
                   </div>
                 )}
@@ -365,6 +378,58 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                     value={formData.vision}
                     isEditing={isEditing("mission")}
                     onChange={(val) => handleChange("vision", val)}
+                  />
+                </div>
+              </SidebarSection>
+
+              {/* ✅ GOALS */}
+              <SidebarSection
+                title="Goals"
+                isOpen={sections.goals}
+                onToggle={() => toggleSection("goals")}
+                onEdit={() => setEditingSection("goals")}
+                preview={previews.goalsPreview}
+              >
+                <EditableField
+                  label="Primary goal"
+                  value={formData.primaryGoal}
+                  isEditing={isEditing("goals")}
+                  onChange={(val) => handleChange("primaryGoal", val)}
+                  forceLabel
+                  placeholder="e.g., Increase leads, Boost conversions, Grow awareness"
+                />
+
+                <div className="pt-3 border-t border-gray-200">
+                  <EditableList
+                    items={formData.goals}
+                    isEditing={isEditing("goals")}
+                    onChange={(val) => handleChange("goals", val)}
+                  />
+                  <p className="mt-2 text-[11px] text-gray-400 leading-snug">
+                    Add 2–6 supporting goals (e.g., “Lower CPC”, “Increase email
+                    signups”, “Improve retention”).
+                  </p>
+                </div>
+
+                <div className="pt-3 border-t border-gray-200">
+                  <EditableField
+                    label="Success metric"
+                    value={formData.successMetric}
+                    isEditing={isEditing("goals")}
+                    onChange={(val) => handleChange("successMetric", val)}
+                    forceLabel
+                    placeholder="e.g., +30% leads/month, CAC under $20, 3% CTR"
+                  />
+                </div>
+
+                <div className="pt-3 border-t border-gray-200">
+                  <EditableField
+                    label="Timeframe"
+                    value={formData.goalTimeframe}
+                    isEditing={isEditing("goals")}
+                    onChange={(val) => handleChange("goalTimeframe", val)}
+                    forceLabel
+                    placeholder="e.g., Next 30 days, Q1, This month"
                   />
                 </div>
               </SidebarSection>
