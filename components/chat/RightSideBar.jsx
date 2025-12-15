@@ -8,7 +8,7 @@ import { SidebarSection } from "./ui/SidebarSection";
 import { EditableField } from "./ui/EditableField";
 import { EditableTextArea } from "./ui/EditableTextArea";
 import { EditableList } from "./ui/EditableList";
-import { EditableColorPalette } from "./ui/EditableColorPalette";
+import EditableColorPalette from "./ui/EditableColorPalette";
 
 export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
   const { companyData, updateCompanyState, loading } = useCompany();
@@ -342,7 +342,8 @@ export default function RightSidebar({ isOpen, setIsOpen, activeContext }) {
                 isOpen={sections.colors}
                 onToggle={() => toggleSection("colors")}
                 onEdit={() => setEditingSection("colors")}
-                preview={previews.colorsPreview}
+                previewType="colors"
+                previewData={formData.colors}
               >
                 <EditableColorPalette
                   colors={formData.colors}

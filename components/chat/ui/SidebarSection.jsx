@@ -7,61 +7,98 @@ export function SidebarSection({
   isOpen,
   onToggle,
   onEdit,
-  preview, // ✅ NEW: collapsed preview text (string)
+  preview,
+  previewType,     // "text" | "colors"
+  previewData,     // used when previewType === "colors"
   children,
 }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl">
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
       {/* Header */}
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        aria-label={`${title} section`}
         onClick={onToggle}
-        className="w-full text-left p-4 flex items-start justify-between gap-3"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle?.();
+          }
+        }}
+        className="w-full p-4 flex items-start justify-between gap-3 cursor-pointer select-none"
       >
+        {/* Left */}
         <div className="min-w-0">
-          <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-            {title}
-          </h4>
+          <h4 className="text-sm font-bold text-gray-900">{title}</h4>
 
-          {/* ✅ Collapsed preview */}
-          {!isOpen && preview ? (
-            <div className="mt-1 text-sm text-gray-700 line-clamp-2">
+          {/* TEXT PREVIEW */}
+          {!isOpen && preview && previewType !== "colors" && (
+            <p className="mt-1 text-xs text-gray-500 leading-snug line-clamp-2">
               {preview}
-            </div>
-          ) : null}
+            </p>
+          )}
+
+          {/* COLOR PREVIEW */}
+          {!isOpen &&
+            previewType === "colors" &&
+            Array.isArray(previewData) &&
+            previewData.length > 0 && (
+              <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                {previewData.slice(0, 6).map((color, idx) => (
+                  <span
+                    key={idx}
+                    className="w-4 h-4 rounded-full border border-gray-300"
+                    style={{ backgroundColor: color }}
+                    title={color}
+                  />
+                ))}
+
+                {previewData.length > 6 && (
+                  <span className="text-[10px] text-gray-400 ml-1">
+                    +{previewData.length - 6}
+                  </span>
+                )}
+              </div>
+            )}
         </div>
 
+        {/* Right */}
         <div className="flex items-center gap-2 shrink-0">
-          {onEdit ? (
+          {onEdit && (
             <button
               type="button"
               onClick={(e) => {
-                e.stopPropagation(); // prevent toggling when clicking edit
-                onEdit();
+                e.stopPropagation();
+                onEdit?.();
               }}
-              className="h-8 px-2 rounded-lg border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 inline-flex items-center gap-1"
+              className="h-8 px-2 rounded-lg border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50"
               aria-label={`Edit ${title}`}
               title={`Edit ${title}`}
             >
-              <Pencil className="w-3 h-3" />
-              Edit
+              <span className="inline-flex items-center gap-1">
+                <Pencil className="w-3 h-3" />
+                Edit
+              </span>
             </button>
-          ) : null}
+          )}
 
           <ChevronDown
             className={`w-4 h-4 text-gray-400 transition-transform ${
-              isOpen ? "rotate-180" : ""
+              isOpen ? "rotate-180" : "rotate-0"
             }`}
+            aria-hidden="true"
           />
         </div>
-      </button>
+      </div>
 
       {/* Body */}
-      {isOpen ? (
-        <div className="px-4 pb-4">
-          <div className="pt-3 border-t border-gray-100">{children}</div>
+      {isOpen && (
+        <div className="p-4 pt-0 space-y-4">
+          {children}
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
