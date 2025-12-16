@@ -1,94 +1,170 @@
 "use client";
 
-import {
-  Lock,
-  Unlock,
-  RotateCcw,
-  CheckCircle,
-  AlertTriangle,
-} from "lucide-react";
+import { useMemo, useState } from "react";
+import { Trash2, Lock, Unlock, RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react";
 
-export default function CampaignStatusBanner({
-  status = "approved", 
-  provider = "Google Ads",
-  onUnlock,
-  onRegenerate,
-}) {
-  /**
-   * status:
-   * - "draft"
-   * - "approved"
-   * - "running"
-   * - "needs_review"
-   */
-
-  const config = {
-    draft: {
-      icon: AlertTriangle,
-      title: `${provider} draft ready`,
-      body: "Review and approve before launch.",
-      tone: "bg-amber-50 border-amber-200 text-amber-900",
-    },
-    approved: {
-      icon: CheckCircle,
-      title: `${provider} draft approved`,
-      body:
-        "This draft is locked. You can unlock to edit, or regenerate a new version.",
-      tone: "bg-green-50 border-green-200 text-green-900",
-    },
-    running: {
-      icon: CheckCircle,
-      title: `${provider} campaign live`,
-      body: "This campaign is active and collecting performance data.",
-      tone: "bg-blue-50 border-blue-200 text-blue-900",
-    },
-    needs_review: {
-      icon: AlertTriangle,
-      title: "Draft needs review",
-      body:
-        "Some assets failed validation. Review before attempting to publish.",
-      tone: "bg-red-50 border-red-200 text-red-900",
-    },
+function Pill({ status }) {
+  const map = {
+    draft: { label: "Draft", cls: "bg-gray-50 text-gray-700 border-gray-200", Icon: AlertTriangle },
+    generating: { label: "Generating…", cls: "bg-blue-50 text-blue-700 border-blue-200", Icon: RefreshCw },
+    approved: { label: "Approved", cls: "bg-green-50 text-green-700 border-green-200", Icon: CheckCircle2 },
+    locked: { label: "Locked", cls: "bg-amber-50 text-amber-800 border-amber-200", Icon: Lock },
   };
 
-  const cfg = config[status] || config.draft;
-  const Icon = cfg.icon;
+  const cfg = map[status] || map.draft;
+  const Icon = cfg.Icon;
 
   return (
-    <div className={`mx-6 mt-4 rounded-2xl border p-4 ${cfg.tone}`}>
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl bg-white/60 border flex items-center justify-center shrink-0">
-            <Icon className="w-4 h-4" />
-          </div>
+    <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold ${cfg.cls}`}>
+      <Icon className="w-4 h-4" />
+      {cfg.label}
+    </span>
+  );
+}
 
-          <div>
-            <div className="font-semibold text-sm">{cfg.title}</div>
-            <div className="text-sm mt-1 opacity-90">{cfg.body}</div>
+export default function CampaignStatusBanner({
+  provider = "Google Ads",
+  status = "draft", // "draft" | "generating" | "approved" | "locked"
+  message, // optional override text
+  onUnlock,
+  onRegenerate,
+  onDeleteCampaign, // ✅ NEW
+  deleteLabel = "Delete campaign",
+}) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const defaultMsg = useMemo(() => {
+    if (status === "approved")
+      return "This draft is locked. You can unlock to edit, or regenerate a new version.";
+    if (status === "locked")
+      return "This draft is locked. Unlock to edit or regenerate.";
+    if (status === "generating")
+      return "Draft is generating. Results will appear shortly.";
+    return "Draft ready. Approve to lock, or regenerate to try a new version.";
+  }, [status]);
+
+  async function handleDelete() {
+    if (!onDeleteCampaign) return;
+    setErr("");
+    setBusy(true);
+    try {
+      await onDeleteCampaign();
+      setConfirmOpen(false);
+    } catch (e) {
+      console.error(e);
+      setErr("Could not delete campaign. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="border-b border-gray-100 bg-white">
+        <div className="px-4 lg:px-6 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="text-sm font-semibold text-gray-900 truncate">
+                  {provider} draft
+                </div>
+                <Pill status={status} />
+              </div>
+
+              <div className="mt-1 text-sm text-gray-600">
+                {message || defaultMsg}
+              </div>
+
+              {err ? (
+                <div className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                  {err}
+                </div>
+              ) : null}
+            </div>
+
+            {/* Actions (right side) */}
+            <div className="shrink-0 flex items-center gap-2">
+              {status === "approved" || status === "locked" ? (
+                <button
+                  type="button"
+                  onClick={onUnlock}
+                  className="h-9 px-3 rounded-xl bg-white border border-gray-200 text-xs font-bold text-gray-800 hover:bg-gray-50 inline-flex items-center gap-2"
+                >
+                  <Unlock className="w-4 h-4" />
+                  Unlock
+                </button>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={onRegenerate}
+                className="h-9 px-3 rounded-xl bg-white border border-gray-200 text-xs font-bold text-gray-800 hover:bg-gray-50 inline-flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Regenerate
+              </button>
+
+              {/* ✅ Delete (only here, not sidebar) */}
+              <button
+                type="button"
+                onClick={() => setConfirmOpen(true)}
+                className="h-9 px-3 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 inline-flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                {deleteLabel}
+              </button>
+            </div>
           </div>
         </div>
-
-        {/* ACTIONS */}
-        {status === "approved" && (
-          <div className="flex gap-2 shrink-0">
-            <button
-              onClick={onUnlock}
-              className="h-9 px-3 rounded-xl bg-white border border-gray-200 text-xs font-semibold hover:bg-gray-50 inline-flex items-center gap-2"
-            >
-              <Unlock className="w-4 h-4" />
-              Unlock
-            </button>
-
-            <button
-              onClick={onRegenerate}
-              className="h-9 px-3 rounded-xl bg-gray-900 text-white text-xs font-semibold hover:bg-gray-800 inline-flex items-center gap-2"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Regenerate
-            </button>
-          </div>
-        )}
       </div>
-    </div>
+
+      {/* Confirm modal */}
+      {confirmOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => !busy && setConfirmOpen(false)} />
+          <div className="relative w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-xl p-5">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-red-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-bold text-gray-900">Delete campaign?</div>
+                <div className="mt-1 text-sm text-gray-600">
+                  This will permanently delete the campaign and its drafts.
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 flex gap-2 justify-end">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setConfirmOpen(false)}
+                className="h-9 px-4 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={handleDelete}
+                className="h-9 px-4 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 disabled:opacity-60 inline-flex items-center gap-2"
+              >
+                {busy ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Deleting…
+                  </>
+                ) : (
+                  "Delete"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
