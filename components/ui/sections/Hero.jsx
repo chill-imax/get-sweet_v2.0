@@ -65,7 +65,7 @@ const HeroSection = () => {
             className="mb-4 inline-flex items-center px-3 py-1 text-xs font-medium rounded-full text-green-700 bg-green-100"
           >
             <span className="w-2 h-2 mr-2 bg-green-500 rounded-full"></span>
-            AI speed. Agentic automation. Human quality control.
+            Agentic automation. Human quality.
           </motion.div>
 
           <motion.h1

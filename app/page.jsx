@@ -25,10 +25,10 @@ export default function Home() {
       <WhyWorkWithUs />
       <CustomSystemSection />
       <StatsSection />
-      <IntegrationsSection />
-      <CaseStudiesTeaser />
-      <PricingSection />
-      <SecurityTrustSection />
+      {/*<IntegrationsSection />*/}
+      {/*<CaseStudiesTeaser />*/}
+      {/* <PricingSection /> */}
+      {/* <SecurityTrustSection /> */}
       <TestimonialsSection />
       <CallToActionSection />
       <Footer />
