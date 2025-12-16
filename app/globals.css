@@ -32,6 +32,20 @@
   pl-10;
 }
 
-input, textarea, select {
-  color: #010101; /* tailwind gray-900 */
+@layer base {
+  html,
+  body {
+    @apply bg-white text-gray-900;
+  }
+
+  /* Ensure form inputs are readable */
+  input,
+  textarea,
+  select {
+    @apply text-gray-900 bg-white;
+  }
+
+  ::placeholder {
+    @apply text-gray-400;
+  }
 }

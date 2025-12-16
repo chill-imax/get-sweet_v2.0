@@ -35,15 +35,7 @@ export default function CampaignStatusBanner({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
-  const defaultMsg = useMemo(() => {
-    if (status === "approved")
-      return "This draft is locked. You can unlock to edit, or regenerate a new version.";
-    if (status === "locked")
-      return "This draft is locked. Unlock to edit or regenerate.";
-    if (status === "generating")
-      return "Draft is generating. Results will appear shortly.";
-    return "Draft ready. Approve to lock, or regenerate to try a new version.";
-  }, [status]);
+
 
   async function handleDelete() {
     if (!onDeleteCampaign) return;
@@ -71,10 +63,6 @@ export default function CampaignStatusBanner({
                   {provider} draft
                 </div>
                 <Pill status={status} />
-              </div>
-
-              <div className="mt-1 text-sm text-gray-600">
-                {message || defaultMsg}
               </div>
 
               {err ? (

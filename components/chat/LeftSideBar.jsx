@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  MessageSquare,
+  HouseHeart,
   Rocket,
   Settings,
   Sparkles,
@@ -128,8 +128,8 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
                   : "text-slate-400 hover:bg-slate-800 hover:text-white"
               }`}
             >
-              <MessageSquare className="w-4 h-4" />
-              Brand setup
+              <HouseHeart className="w-4 h-4" />
+              Brand Dashboard
             </button>
           </nav>
 
