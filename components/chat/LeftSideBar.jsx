@@ -10,6 +10,7 @@ import {
   LogOut,
   User,
   Plus,
+  LayoutGrid,
 } from "lucide-react";
 import { useAuth } from "@/context/useContext";
 import Image from "next/image";
@@ -24,7 +25,7 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
 
   const getInitials = (name) => (name ? name.substring(0, 2).toUpperCase() : "U");
 
-  // URL-derived active state
+  // URL-derived active state for a specific campaign id
   const activeCampaignId = useMemo(() => {
     if (!pathname) return null;
     if (!pathname.startsWith("/chat/campaign/")) return null;
@@ -37,6 +38,14 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
 
   const isOnBrandSetup = useMemo(() => {
     return pathname === "/chat" || pathname === "/chat/";
+  }, [pathname]);
+
+  // ✅ Campaigns “home” page (hub / marketplace page)
+  const isOnCampaignsHome = useMemo(() => {
+    // If your hub route is /chat/campaign (recommended)
+    return pathname === "/chat/campaign" || pathname === "/chat/campaign/";
+    // If your hub route is /chat/campaigns instead, replace with:
+    // return pathname === "/chat/campaigns" || pathname === "/chat/campaigns/";
   }, [pathname]);
 
   const getCampaignsList = async () => {
@@ -70,6 +79,12 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
 
   function navigateToBrand() {
     router.push("/chat");
+    setIsOpen?.(false);
+  }
+
+  // ✅ Campaign hub page
+  function navigateToCampaignsHome() {
+    router.push("/chat/campaign"); // change to /chat/campaigns if that's your route
     setIsOpen?.(false);
   }
 
@@ -114,10 +129,6 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
 
         {/* MAIN NAV */}
         <div className="flex-1 overflow-y-auto py-4">
-          {/* BRAND */}
-          <div className="px-4 text-xs font-semibold text-slate-500 uppercase mb-2">
-            Brand
-          </div>
 
           <nav className="space-y-1 px-2">
             <button
@@ -133,52 +144,67 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
             </button>
           </nav>
 
-          {/* CAMPAIGNS */}
-          <div className="mt-8 px-4 flex items-center justify-between text-xs font-semibold text-slate-500 uppercase mb-2">
-            <span>Campaigns</span>
+          <nav className="space-y-1 px-2 mt-2">
+            {/* ✅ NEW: Campaigns hub entry */}
             <button
-              className="text-slate-400 hover:text-white transition-colors p-1 rounded hover:bg-slate-800"
-              title="Create campaign"
-              aria-label="Create campaign"
-              onClick={navigateToNewCampaign}
+              onClick={navigateToCampaignsHome}
+              className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                isOnCampaignsHome
+                  ? "bg-purple-600 text-white"
+                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
+              }`}
             >
-              <Plus className="w-4 h-4" />
+              <LayoutGrid className="w-4 h-4" />
+              Campaigns Home
             </button>
-          </div>
 
-          <nav className="space-y-1 px-2">
+            {/* CAMPAIGNS */}
+            <div className="px-4 flex items-center justify-between text-xs font-semibold text-slate-500 uppercase mb-0">
+              <span>Campaigns</span>
+              <button
+                className="text-slate-400 hover:text-white transition-colors p-1 rounded hover:bg-slate-800"
+                title="Create campaign"
+                aria-label="Create campaign"
+                onClick={navigateToNewCampaign}
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+
             {campaignList.length === 0 ? (
               <p className="px-3 text-xs text-slate-600 italic">No campaigns yet.</p>
             ) : (
-              campaignList.map((c) => {
-                const id = c?._id || c?.id;
-                const name = c?.name || "Untitled campaign";
-                const isActive = activeCampaignId === String(id);
+              <div className="pt-2 space-y-1">
+                {campaignList.map((c) => {
+                  const id = c?._id || c?.id;
+                  const name = c?.name || "Untitled campaign";
+                  const isActive = activeCampaignId === String(id);
 
-                return (
-                  <button
-                    key={id}
-                    onClick={() => navigateToCampaign(id)}
-                    className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                      isActive
-                        ? "bg-purple-600 text-white"
-                        : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <Rocket className="w-4 h-4 shrink-0" />
-                      <span className="truncate">{name}</span>
-                    </div>
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => navigateToCampaign(id)}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        isActive
+                          ? "bg-purple-600 text-white"
+                          : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <Rocket className="w-4 h-4 shrink-0" />
+                        <span className="truncate">{name}</span>
+                      </div>
 
-                    {isActive && (
-                      <span
-                        className="w-2 h-2 rounded-full bg-green-500 shrink-0"
-                        aria-label="Active campaign"
-                      />
-                    )}
-                  </button>
-                );
-              })
+                      {isActive && (
+                        <span
+                          className="w-2 h-2 rounded-full bg-green-500 shrink-0"
+                          aria-label="Active campaign"
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </nav>
         </div>

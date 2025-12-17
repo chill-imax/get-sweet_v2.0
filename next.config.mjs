@@ -26,6 +26,11 @@ const nextConfig = {
         protocol: "https",
         hostname: "https://cdn.jsdelivr.net",
       },
+      {
+        protocol: "https",
+        hostname: "nomorecopyright.com",
+        pathname: "/**",
+      },
     ],
   },
 };
