@@ -166,7 +166,7 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
           </nav>
 
           {/* CAMPAIGNS */}
-          <nav className="space-y-1 px-2">
+          <nav className="space-y-1 px-2 mt-1">
             {/* Campaigns hub entry */}
             <button
               onClick={navigateToCampaignsHome}
