@@ -40,12 +40,15 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
     return pathname === "/chat" || pathname === "/chat/";
   }, [pathname]);
 
+  // ✅ NEW: Brand AI page
+  const isOnBrandAI = useMemo(() => {
+    if (!pathname) return false;
+    return pathname === "/chat/brand-ai" || pathname.startsWith("/chat/brand-ai/");
+  }, [pathname]);
+
   // ✅ Campaigns “home” page (hub / marketplace page)
   const isOnCampaignsHome = useMemo(() => {
-    // If your hub route is /chat/campaign (recommended)
     return pathname === "/chat/campaign" || pathname === "/chat/campaign/";
-    // If your hub route is /chat/campaigns instead, replace with:
-    // return pathname === "/chat/campaigns" || pathname === "/chat/campaigns/";
   }, [pathname]);
 
   const getCampaignsList = async () => {
@@ -82,9 +85,14 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
     setIsOpen?.(false);
   }
 
+  function navigateToBrandAI() {
+    router.push("/chat/brand-ai");
+    setIsOpen?.(false);
+  }
+
   // ✅ Campaign hub page
   function navigateToCampaignsHome() {
-    router.push("/chat/campaign"); // change to /chat/campaigns if that's your route
+    router.push("/chat/campaign");
     setIsOpen?.(false);
   }
 
@@ -129,8 +137,21 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
 
         {/* MAIN NAV */}
         <div className="flex-1 overflow-y-auto py-4">
-
+          {/* BRAND */}
           <nav className="space-y-1 px-2">
+            {/* ✅ NEW: You AI Manager link */}
+            <button
+              onClick={navigateToBrandAI}
+              className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                isOnBrandAI
+                  ? "bg-purple-600 text-white"
+                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
+              }`}
+            >
+              <Sparkles className="w-4 h-4" />
+              Your AI Manager
+            </button>
+
             <button
               onClick={navigateToBrand}
               className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
@@ -140,12 +161,13 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
               }`}
             >
               <HouseHeart className="w-4 h-4" />
-              Brand Dashboard
+              Brand Kit
             </button>
           </nav>
 
-          <nav className="space-y-1 px-2 mt-2">
-            {/* ✅ NEW: Campaigns hub entry */}
+          {/* CAMPAIGNS */}
+          <nav className="space-y-1 px-2">
+            {/* Campaigns hub entry */}
             <button
               onClick={navigateToCampaignsHome}
               className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
@@ -158,8 +180,7 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
               Campaigns Home
             </button>
 
-            {/* CAMPAIGNS */}
-            <div className="px-4 flex items-center justify-between text-xs font-semibold text-slate-500 uppercase mb-0">
+            <div className="px-4 mt-4 flex items-center justify-between text-xs font-semibold text-slate-500 uppercase mb-0">
               <span>Campaigns</span>
               <button
                 className="text-slate-400 hover:text-white transition-colors p-1 rounded hover:bg-slate-800"
