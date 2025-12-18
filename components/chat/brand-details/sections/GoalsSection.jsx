@@ -3,7 +3,10 @@ import { EditableField } from "@/components/chat/ui/EditableField";
 import { EditableList } from "@/components/chat/ui/EditableList";
 
 export default function GoalsSection({ isOpen, onToggle, formData, onChange }) {
-  const goalsArr = Array.isArray(formData.goals) ? formData.goals : [];
+  const goalsArr = Array.isArray(formData.supportingGoals)
+    ? formData.supportingGoals
+    : [];
+
   const preview =
     goalsArr.length > 0
       ? `${formData.primaryGoal || ""} • ${goalsArr.slice(0, 2).join(", ")}`
@@ -28,9 +31,9 @@ export default function GoalsSection({ isOpen, onToggle, formData, onChange }) {
 
       <div className="pt-3 border-t border-gray-200">
         <EditableList
-          items={formData.goals}
+          items={formData.supportingGoals || []}
           isEditing={true}
-          onChange={(val) => onChange("goals", val)}
+          onChange={(val) => onChange("supportingGoals", val)}
         />
         <p className="mt-2 text-[11px] text-gray-400">Add supporting goals.</p>
       </div>
@@ -49,10 +52,10 @@ export default function GoalsSection({ isOpen, onToggle, formData, onChange }) {
       <div className="pt-3 border-t border-gray-200">
         <EditableField
           label="Timeframe"
-          value={formData.goalTimeframe}
+          value={formData.timeframe}
           isEditing={true}
           forceLabel
-          onChange={(val) => onChange("goalTimeframe", val)}
+          onChange={(val) => onChange("timeframe", val)}
           placeholder="e.g., Q1, This month"
         />
       </div>

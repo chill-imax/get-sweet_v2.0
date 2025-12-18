@@ -24,25 +24,25 @@ const TONES = ["Professional", "Friendly", "Bold", "Urgent (Sales)"];
 
 const OBJECTIVES = [
   {
-    id: "awareness",
+    id: "Awareness", // Ajustado a Mayúscula para coincidir con backend enum
     title: "Awareness",
     desc: "Reach new people and increase brand visibility.",
     icon: Megaphone,
   },
   {
-    id: "leads",
+    id: "Lead generation",
     title: "Lead generation",
     desc: "Capture leads for sales or follow-up.",
     icon: Target,
   },
   {
-    id: "conversions",
+    id: "Conversions",
     title: "Conversions",
     desc: "Drive purchases, bookings, or signups.",
     icon: CreditCard,
   },
   {
-    id: "retention",
+    id: "Retention",
     title: "Retention",
     desc: "Re-engage customers and improve repeat actions.",
     icon: ShieldCheck,
@@ -50,9 +50,9 @@ const OBJECTIVES = [
 ];
 
 const CHANNELS = [
-  { id: "web", label: "Website", icon: Globe2 },
-  { id: "email", label: "Email", icon: Mail },
-  { id: "social", label: "Social", icon: Smartphone },
+  { id: "Website", label: "Website", icon: Globe2 }, // IDs ajustados para ser más legibles en backend
+  { id: "Email", label: "Email", icon: Mail },
+  { id: "Social", label: "Social", icon: Smartphone },
 ];
 
 function CampaignCreationHelpCard() {
@@ -60,15 +60,17 @@ function CampaignCreationHelpCard() {
     <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
       <div className="font-semibold text-gray-800">What happens next?</div>
       <ul className="mt-2 text-sm text-gray-600 space-y-1 list-disc pl-5">
-        <li>We create the campaign in your backend (same endpoint as the modal).</li>
+        <li>We create the campaign in your backend (status: planning).</li>
         <li>
-          You’re redirected to <span className="font-mono">/chat/campaign/[id]</span>.
+          You’re redirected to{" "}
+          <span className="font-mono">/chat/campaign/[id]</span>.
         </li>
-        <li>The right-side panel appears (campaign mode) for quick references.</li>
-        <li>The middle becomes the campaign workspace (generators + drafts).</li>
+        <li>The AI Strategy Agent will analyze your choices.</li>
+        <li>The middle screen becomes your campaign workspace.</li>
       </ul>
       <div className="mt-3 text-xs text-gray-500 leading-snug">
-        For now, the backend can ignore new fields until you add support — this flow still works.
+        Don&apos;t worry about perfection. You can edit everything later with
+        the AI.
       </div>
     </div>
   );
@@ -80,17 +82,15 @@ export default function NewCampaignPage() {
 
   const [isLeftOpen, setIsLeftOpen] = useState(false);
 
-  // Required/compatible with existing modal
+  // Form States
   const [name, setName] = useState("");
   const [tone, setTone] = useState("Professional");
-
-  // Extra fields (safe placeholders; backend can ignore)
-  const [objective, setObjective] = useState("leads");
-  const [channels, setChannels] = useState(["web"]);
+  const [objective, setObjective] = useState("Lead generation"); // Default válido
+  const [channels, setChannels] = useState(["Website"]);
   const [audience, setAudience] = useState("");
   const [primaryKpi, setPrimaryKpi] = useState("");
 
-  // Optional placeholders you can wire later
+  // Optional placeholders
   const [landingUrl, setLandingUrl] = useState("");
   const [geo, setGeo] = useState("");
   const [budget, setBudget] = useState("");
@@ -106,6 +106,7 @@ export default function NewCampaignPage() {
     );
   }
 
+  // ✅ LÓGICA CORREGIDA AQUÍ
   async function handleCreate(e) {
     e.preventDefault();
     setError("");
@@ -121,42 +122,48 @@ export default function NewCampaignPage() {
 
     setLoading(true);
     try {
-      // ✅ Still compatible with your current backend: { name, tone }
-      // Extra fields can be ignored until you expand your schema.
+      // 1. Preparar el Payload (Mapeo correcto Frontend -> Backend)
       const payload = {
         name: name.trim(),
         tone,
-
-        // placeholders / future schema
         objective,
         channels,
-        audience: audience.trim(),
+        targetAudience: audience.trim(), // Backend espera 'targetAudience'
         primaryKpi: primaryKpi.trim(),
-        landingUrl: landingUrl.trim(),
+        landingPageUrl: landingUrl.trim(), // Backend espera 'landingPageUrl'
         geo: geo.trim(),
         budget: budget.trim(),
       };
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/campaigns`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"; // Fallback seguro
+
+      const res = await fetch(`${apiUrl}/api/v1/campaigns`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(payload), // ✅ CORRECCIÓN: Usamos 'payload', no 'formData'
       });
 
-      if (!res.ok) throw new Error("Failed to create campaign");
+      const responseJson = await res.json(); // ✅ CORRECCIÓN: Capturamos la respuesta
 
-      const data = await res.json();
-      const newCampaignId = data?._id || data?.data?._id || data?.id;
+      if (!res.ok) {
+        throw new Error(responseJson.message || "Failed to create campaign");
+      }
 
-      if (!newCampaignId) throw new Error("Campaign created, but no ID returned");
+      // 2. Extraer ID de la respuesta estructurada: { success: true, data: { _id: "..." } }
+      const campaignId = responseJson.data?._id;
 
-      router.push(`/chat/campaign/${newCampaignId}`);
+      if (!campaignId) {
+        throw new Error("Campaign created, but no ID returned from server");
+      }
+
+      // 3. Redirección exitosa
+      router.push(`/chat/campaign/${campaignId}`);
     } catch (err) {
       console.error(err);
-      setError("Error creating campaign. Please try again.");
+      setError(err.message || "Error creating campaign. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -197,7 +204,7 @@ export default function NewCampaignPage() {
               Create a campaign
             </h1>
             <p className="mt-2 text-sm text-gray-600">
-              This is a full-page flow (replaces the modal). Start small now; expand later.
+              This is a full-page flow. Start small now; expand later.
             </p>
 
             {/* FORM */}
@@ -207,13 +214,13 @@ export default function NewCampaignPage() {
                 <div className="grid gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
-                      Campaign name
+                      Campaign name <span className="text-red-500">*</span>
                     </label>
                     <input
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g., Winter Promo 2025"
-                      className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-purple-200"
+                      className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-purple-200 transition-all"
                       autoFocus
                     />
                   </div>
@@ -226,7 +233,7 @@ export default function NewCampaignPage() {
                       <select
                         value={tone}
                         onChange={(e) => setTone(e.target.value)}
-                        className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 outline-none focus:ring-2 focus:ring-purple-200"
+                        className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 outline-none focus:ring-2 focus:ring-purple-200 cursor-pointer"
                       >
                         {TONES.map((t) => (
                           <option key={t} value={t}>
@@ -243,8 +250,8 @@ export default function NewCampaignPage() {
                       <input
                         value={primaryKpi}
                         onChange={(e) => setPrimaryKpi(e.target.value)}
-                        placeholder="e.g., Leads/week, CAC, CTR, ROAS"
-                        className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-purple-200"
+                        placeholder="e.g., Leads/week, CAC, ROAS"
+                        className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-purple-200 transition-all"
                       />
                     </div>
                   </div>
@@ -254,7 +261,7 @@ export default function NewCampaignPage() {
               {/* Objective */}
               <div className="bg-white border border-gray-200 rounded-2xl p-5">
                 <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                  <Target className="w-4 h-4" />
+                  <Target className="w-4 h-4 text-purple-600" />
                   Objective
                 </div>
                 <p className="mt-1 text-sm text-gray-600">
@@ -270,27 +277,31 @@ export default function NewCampaignPage() {
                         type="button"
                         key={o.id}
                         onClick={() => setObjective(o.id)}
-                        className={`text-left p-4 rounded-2xl border transition ${
+                        className={`text-left p-4 rounded-2xl border transition-all duration-200 ${
                           active
-                            ? "border-purple-300 bg-purple-50"
-                            : "border-gray-200 bg-white hover:bg-gray-50"
+                            ? "border-purple-500 bg-purple-50 ring-1 ring-purple-500"
+                            : "border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300"
                         }`}
                       >
                         <div className="flex items-start gap-3">
                           <div
-                            className={`w-9 h-9 rounded-xl flex items-center justify-center border ${
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-colors ${
                               active
-                                ? "bg-white border-purple-200"
-                                : "bg-gray-50 border-gray-200"
+                                ? "bg-white border-purple-200 text-purple-600 shadow-sm"
+                                : "bg-gray-50 border-gray-200 text-gray-500"
                             }`}
                           >
-                            <Icon className="w-4 h-4 text-gray-800" />
+                            <Icon className="w-4 h-4" />
                           </div>
                           <div>
-                            <div className="text-sm font-semibold text-gray-900">
+                            <div
+                              className={`text-sm font-semibold ${
+                                active ? "text-purple-900" : "text-gray-900"
+                              }`}
+                            >
                               {o.title}
                             </div>
-                            <div className="text-xs text-gray-600 mt-1">
+                            <div className="text-xs text-gray-500 mt-1 leading-relaxed">
                               {o.desc}
                             </div>
                           </div>
@@ -311,10 +322,10 @@ export default function NewCampaignPage() {
                     <input
                       value={audience}
                       onChange={(e) => setAudience(e.target.value)}
-                      placeholder="e.g., Homeowners in SF, SaaS marketers, etc."
-                      className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-purple-200"
+                      placeholder="e.g., Homeowners in SF, SaaS marketers"
+                      className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-purple-200 transition-all"
                     />
-                    <p className="mt-2 text-xs text-gray-500">
+                    <p className="mt-2 text-xs text-gray-400">
                       If blank, we’ll use your brand profile audience.
                     </p>
                   </div>
@@ -332,35 +343,39 @@ export default function NewCampaignPage() {
                             key={c.id}
                             type="button"
                             onClick={() => toggleChannel(c.id)}
-                            className={`h-11 rounded-xl border text-sm font-semibold inline-flex items-center justify-center gap-2 transition ${
+                            className={`h-11 rounded-xl border text-sm font-semibold inline-flex items-center justify-center gap-2 transition-all ${
                               active
-                                ? "border-purple-300 bg-purple-50 text-gray-900"
-                                : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                                ? "border-purple-500 bg-purple-50 text-purple-900"
+                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:border-gray-300"
                             }`}
                           >
-                            <Icon className="w-4 h-4" />
+                            <Icon
+                              className={`w-4 h-4 ${
+                                active ? "text-purple-600" : "text-gray-400"
+                              }`}
+                            />
                             {c.label}
                           </button>
                         );
                       })}
                     </div>
-                    <p className="mt-2 text-xs text-gray-500">
+                    <p className="mt-2 text-xs text-gray-400">
                       You can change this later.
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Extra placeholders (optional) */}
-              <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              {/* Extra placeholders */}
+              <div className="bg-white border border-gray-200 rounded-2xl p-5 opacity-90 hover:opacity-100 transition-opacity">
                 <div className="text-sm font-semibold text-gray-800">
-                  Optional setup (placeholder)
+                  Optional setup details
                 </div>
-                <p className="mt-1 text-sm text-gray-600">
-                  These can feed your agents later. Backend can ignore for now.
+                <p className="mt-1 text-sm text-gray-500 mb-4">
+                  These help the AI generate better content.
                 </p>
 
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
                       Landing URL
@@ -369,19 +384,19 @@ export default function NewCampaignPage() {
                       value={landingUrl}
                       onChange={(e) => setLandingUrl(e.target.value)}
                       placeholder="https://example.com"
-                      className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-purple-200"
+                      className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-purple-200 transition-all"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
-                      Geo
+                      Geo / Location
                     </label>
                     <input
                       value={geo}
                       onChange={(e) => setGeo(e.target.value)}
-                      placeholder="e.g., Bay Area"
-                      className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-purple-200"
+                      placeholder="e.g., Bay Area, Global"
+                      className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-purple-200 transition-all"
                     />
                   </div>
 
@@ -393,52 +408,52 @@ export default function NewCampaignPage() {
                       value={budget}
                       onChange={(e) => setBudget(e.target.value)}
                       placeholder="e.g., $50/day"
-                      className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-purple-200"
+                      className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-purple-200 transition-all"
                     />
                   </div>
                 </div>
               </div>
 
-              {error ? (
-                <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
+              {/* Error Message */}
+              {error && (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-red-500" />
                   {error}
                 </div>
-              ) : null}
+              )}
 
               {/* CTA */}
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-xs text-gray-500">
+              <div className="pt-4 flex items-center justify-between gap-3 border-t border-gray-100">
+                <div className="text-xs text-gray-500 hidden sm:block">
                   After creation, you’ll land in the campaign workspace.
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading || !name.trim()}
-                  className="h-11 px-5 rounded-xl bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                  className="h-12 px-6 rounded-xl bg-purple-600 text-white text-sm font-bold shadow-lg shadow-purple-200 hover:bg-purple-700 hover:shadow-purple-300 hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none inline-flex items-center gap-2 ml-auto"
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Creating…
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Creating Campaign…
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-4 h-4" />
-                      Start campaign
+                      <Sparkles className="w-5 h-5" />
+                      Start Campaign
                     </>
                   )}
                 </button>
               </div>
             </form>
 
-            <div className="mt-8">
+            <div className="mt-10">
               <CampaignCreationHelpCard />
             </div>
           </div>
         </div>
       </div>
-
-      {/* No RightSidebar on /new; it appears on /campaign/[id] */}
     </div>
   );
 }

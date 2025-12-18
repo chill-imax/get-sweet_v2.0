@@ -8,8 +8,8 @@ export function SidebarSection({
   onToggle,
   onEdit,
   preview,
-  previewType,     // "text" | "colors"
-  previewData,     // used when previewType === "colors"
+  previewType,
+  previewData,
   children,
 }) {
   return (
@@ -94,11 +94,7 @@ export function SidebarSection({
       </div>
 
       {/* Body */}
-      {isOpen && (
-        <div className="p-4 pt-0 space-y-4">
-          {children}
-        </div>
-      )}
+      {isOpen && <div className="p-4 pt-0 space-y-4">{children}</div>}
     </div>
   );
 }

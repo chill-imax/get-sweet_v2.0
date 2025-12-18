@@ -31,7 +31,7 @@ export default function ManagerIntroClient() {
             <div className="rounded-3xl border border-gray-200 bg-white shadow-sm p-8 md:p-10">
               {/* Big bot icon */}
               <div className="flex flex-col items-center text-center">
-                <div className="w-24 h-24 rounded-3xl bg-gradient-to-b from-purple-50 to-white border border-purple-100 flex items-center justify-center shadow-sm overflow-hidden">
+                <div className="w-24 h-24 rounded-3xl bg-linear-to-b from-purple-50 to-white border border-purple-100 flex items-center justify-center shadow-sm overflow-hidden">
                   {/* Put your bot image in /public/bots/sweet.png (or .webp) */}
                   <Image
                     src="/bots/sweet.png"
@@ -47,22 +47,34 @@ export default function ManagerIntroClient() {
                   Meet Sweet
                 </h1>
                 <p className="mt-2 text-sm md:text-base text-gray-600 max-w-xl">
-                  Your personal Marketing Campaign Manager AI. Tell Sweet your goal and budget —
-                  it’ll build campaign structure, generate ads, and guide you step-by-step.
+                  Your personal Marketing Campaign Manager AI. Tell Sweet your
+                  goal and budget — it’ll build campaign structure, generate
+                  ads, and guide you step-by-step.
                 </p>
 
                 {/* What Sweet can do */}
                 <div className="mt-6 w-full grid grid-cols-1 md:grid-cols-3 gap-3 text-left">
                   {[
-                    ["Launch faster", "Create ad groups, keywords, and copy in minutes."],
-                    ["Stay consistent", "Uses your brand details across every campaign."],
-                    ["Improve results", "Suggests tests, budgets, and optimizations."],
+                    [
+                      "Launch faster",
+                      "Create ad groups, keywords, and copy in minutes.",
+                    ],
+                    [
+                      "Stay consistent",
+                      "Uses your brand details across every campaign.",
+                    ],
+                    [
+                      "Improve results",
+                      "Suggests tests, budgets, and optimizations.",
+                    ],
                   ].map(([t, d]) => (
                     <div
                       key={t}
                       className="rounded-2xl border border-gray-200 bg-gray-50 p-4"
                     >
-                      <div className="text-sm font-semibold text-gray-900">{t}</div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {t}
+                      </div>
                       <div className="mt-1 text-xs text-gray-600">{d}</div>
                     </div>
                   ))}
@@ -95,7 +107,8 @@ export default function ManagerIntroClient() {
 
             {/* Optional: secondary row like “Messenger intro” */}
             <div className="mt-8 text-center text-xs text-gray-500">
-              By continuing, you agree that Sweet can use your inputs to generate campaign drafts.
+              By continuing, you agree that Sweet can use your inputs to
+              generate campaign drafts.
             </div>
           </div>
         </div>

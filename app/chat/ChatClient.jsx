@@ -1,9 +1,7 @@
-// app/chat/ChatClient.jsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-
 import LeftSidebar from "@/components/chat/LeftSideBar";
 import ChatHeader from "@/components/chat/ui/HeaderChat";
 import BrandImportPanel from "@/components/chat/onboarding/BrandImportPanel";
@@ -20,8 +18,20 @@ export default function ChatClient() {
   const [brandStatus, setBrandStatus] = useState("none"); // "none" | "importing" | "draft_ready" | "locked" | "failed"
   const [brandDraft, setBrandDraft] = useState(null);
 
+  // --- LÓGICA DE SIGNAL---
+  const [aiCompletedSignal, setAiCompletedSignal] = useState(0);
   const aiCompleted = searchParams.get("aiCompleted") === "true";
-  const aiCompletedSignal = aiCompleted ? Date.now() : 0;
+
+  useEffect(() => {
+    if (aiCompleted) {
+      const timer = setTimeout(() => {
+        setAiCompletedSignal(Date.now());
+      }, 0);
+
+      return () => clearTimeout(timer);
+    }
+  }, [aiCompleted]);
+  // ----------------------------------
 
   const headerTitle = useMemo(() => {
     if (brandStatus === "locked") return "Brand ready";
@@ -32,6 +42,8 @@ export default function ChatClient() {
 
   function clearAICompletedParam() {
     router.replace("/chat");
+    // Opcional: Resetear el signal localmente
+    setAiCompletedSignal(0);
   }
 
   return (
@@ -49,7 +61,7 @@ export default function ChatClient() {
           headerTitle={headerTitle}
           activeContext={activeContext}
           onOpenLeft={() => setIsLeftOpen(true)}
-          onOpenRight={() => {}} // right sidebar no longer used for confirmation flow
+          onOpenRight={() => {}}
         />
 
         <div className="flex-1 min-h-0">

@@ -12,6 +12,7 @@ export function useBrandDetails() {
   const { token } = useAuth();
   const { companyData, updateCompanyState, loading } = useCompany();
 
+  // ✅ CORRECCIÓN 1: Inicializar con los nombres correctos de la BD
   const [formData, setFormData] = useState({
     brandName: "",
     aka: "",
@@ -20,8 +21,14 @@ export function useBrandDetails() {
     website: "",
     mission: "",
     vision: "",
+
+    // Section Goals
     primaryGoal: "",
-    goals: [],
+    successMetric: "", // Agregado
+    timeframe: "", // Agregado
+    supportingGoals: [], // Renombrado de 'goals' a 'supportingGoals'
+
+    // Lists
     services: [],
     differentiators: [],
     values: [],
@@ -29,7 +36,7 @@ export function useBrandDetails() {
   });
 
   const [toast, setToast] = useState(null);
-  const [isConfirming, setIsConfirming] = useState(false); // Usamos este estado para el loading del botón principal
+  const [isConfirming, setIsConfirming] = useState(false);
 
   // =========================================================
   // 🔍 HYDRATION (Carga de Datos)
@@ -38,6 +45,7 @@ export function useBrandDetails() {
     if (!companyData) return;
 
     // 1. Normalización de datos (DB -> Form)
+    // A veces viene en data, a veces directo en el objeto
     const validData =
       companyData.data || companyData.companyData || companyData;
 
@@ -49,13 +57,20 @@ export function useBrandDetails() {
       website: validData.website || "",
       mission: validData.mission || "",
       vision: validData.vision || "",
+
+      // ✅ CORRECCIÓN 2: Mapear los campos de Goals correctamente
       primaryGoal: validData.primaryGoal || "",
-      goals: Array.isArray(validData.goals) ? validData.goals : [],
+      successMetric: validData.successMetric || "",
+      timeframe: validData.timeframe || "",
+      supportingGoals: Array.isArray(validData.supportingGoals)
+        ? validData.supportingGoals
+        : [],
+
       services: Array.isArray(validData.services) ? validData.services : [],
       differentiators: Array.isArray(validData.differentiators)
         ? validData.differentiators
         : [],
-      values: Array.isArray(validData.values) ? validData.values : [],
+      values: Array.isArray(validData.values) ? validData.values : [], // A veces es brandVoice
       colors: Array.isArray(validData.colors) ? validData.colors : [],
     };
 
@@ -66,7 +81,8 @@ export function useBrandDetails() {
       if (localDraftRaw) {
         const localDraft = JSON.parse(localDraftRaw);
         if (localDraft.brandName && localDraft.brandName.trim() !== "") {
-          finalData = localDraft;
+          // Fusionamos el draft local con la estructura base para asegurar que existan los campos nuevos
+          finalData = { ...dbData, ...localDraft };
         }
       }
     } catch (e) {
@@ -83,42 +99,47 @@ export function useBrandDetails() {
   const handleChange = (field, value) => {
     setFormData((prev) => {
       const next = { ...prev, [field]: value };
-      // Autosave local por seguridad (si refrescan la página)
+      // Autosave local por seguridad
       localStorage.setItem(DRAFT_KEY, JSON.stringify(next));
       return next;
     });
   };
 
-  // ❌ CANCELAR (Salir sin guardar en DB, vuelve al chat)
+  // ❌ CANCELAR
   function handleCancel() {
     router.push("/chat");
   }
 
-  // ✅ GUARDAR Y CONTINUAR (Save -> DB -> Campaign)
+  // ✅ GUARDAR Y CONTINUAR
   async function handleSaveChanges() {
     setIsConfirming(true);
     setToast(null);
 
     try {
-      // 1. Preparar Payload
+      // 1. Preparar Payload (Aseguramos nombres correctos para el Backend)
       const payload = {
         ...formData,
-        name: formData.brandName,
-        status: "Draft", // Draft, Ready or Archive
+        name: formData.brandName, // Backend espera 'name' a veces
+        supportingGoals: formData.supportingGoals, // Asegurar array correcto
+        timeframe: formData.timeframe,
+        successMetric: formData.successMetric,
+        status: "Draft",
       };
 
       // 2. Fetch PUT a la DB
-      const res = await fetch(
-        "https://backend-get-sweet-v2-0.onrender.com/api/v1/company/profile",
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+      // Usamos la variable de entorno para consistencia
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL ||
+        "https://backend-get-sweet-v2-0.onrender.com";
+
+      const res = await fetch(`${apiUrl}/api/v1/company/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
 
       if (!res.ok) throw new Error("Failed to save changes");
 
@@ -137,10 +158,10 @@ export function useBrandDetails() {
         message: "Saved! Continuing to Campaigns...",
       });
 
-      // 5. Redirigir a Campaign
+      // 5. Redirigir
       setTimeout(() => {
         setToast(null);
-        router.push("/chat/campaign");
+        router.push("/chat/campaign"); // O a donde corresponda en tu flujo
       }, 1000);
     } catch (err) {
       console.error(err);
