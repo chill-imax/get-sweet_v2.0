@@ -5,8 +5,6 @@ import { useAuth } from "@/context/useContext";
 import { useCompany } from "@/context/CompanyContext";
 import { uid, buildDraftFromSources } from "./utils";
 
-const BACKEND_URL = "https://backend-get-sweet-v2-0.onrender.com";
-
 export function useBrandSources({
   onStartImport,
   onDraftReady,
@@ -15,10 +13,16 @@ export function useBrandSources({
   aiCompletedSignal,
 }) {
   const { token } = useAuth();
-  const { companyData, loading } = useCompany();
+  const { companyData, updateCompanyState, loading } = useCompany();
 
   const [sources, setSources] = useState({
-    website: { status: "none", url: "", lastUpdatedAt: null, error: null },
+    website: {
+      status: "none",
+      url: "",
+      lastUpdatedAt: null,
+      error: null,
+      data: null,
+    },
     decks: [],
     ai: { status: "none", lastUpdatedAt: null },
   });
@@ -40,89 +44,70 @@ export function useBrandSources({
     sources.decks.some((d) => d.status === "importing");
 
   // =========================================================
-  // 🔍 DEBUG & HYDRATION LOGIC (Lógica de Carga)
+  // 1. HYDRATION
   // =========================================================
   useEffect(() => {
-    // 1. Logs para ver qué está llegando realmente
-    // Si ves "DATA RECEIVED" en la consola, el contexto funciona.
-    if (companyData) {
-      console.log("🔥 [useBrandSources] DATA RECEIVED:", companyData);
-    }
+    if (loading || !companyData || !token) return;
 
-    if (loading || !companyData) return;
+    const currentUrl = companyData.website || "";
+    setWebsiteUrl((prev) => (prev ? prev : currentUrl));
 
-    // 2. Normalizar la data (por si viene anidada en .data o .companyData)
-    const validData =
-      companyData.data || companyData.companyData || companyData;
+    setSources((prev) => ({
+      ...prev,
+      website: {
+        ...prev.website,
+        status: currentUrl ? "ready" : "none",
+        url: currentUrl,
+        lastUpdatedAt: companyData.updatedAt || new Date().toISOString(),
+      },
+      ai: {
+        ...prev.ai,
+        status: companyData.mission || companyData.vision ? "ready" : "none",
+        lastUpdatedAt: companyData.updatedAt,
+      },
+    }));
 
-    console.log("✅ [useBrandSources] Processing Data:", validData);
+    const fetchPdfHistory = async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/brand/sources`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
-    setSources((prev) => {
-      let next = { ...prev };
-      let hasChanges = false;
+        if (res.ok) {
+          const json = await res.json();
+          const sourcesList = json.data || json;
+          const pdfs = Array.isArray(sourcesList)
+            ? sourcesList.filter((s) => s.sourceType === "pdf")
+            : [];
 
-      // --- WEBSITE ---
-      // Verificamos si existe 'website' O 'url' en la data
-      const remoteUrl = validData.website || validData.url;
-
-      // Si hay URL y (nosotros no la tenemos O es diferente a la actual)
-      if (
-        remoteUrl &&
-        (prev.website.status === "none" || prev.website.url !== remoteUrl)
-      ) {
-        console.log("➡️ Loading Website found:", remoteUrl);
-        next.website = {
-          status: "ready",
-          url: remoteUrl,
-          lastUpdatedAt: validData.updatedAt || new Date().toISOString(),
-          error: null,
-        };
-        setWebsiteUrl(remoteUrl);
-        hasChanges = true;
+          if (pdfs.length > 0) {
+            setSources((prev) => ({
+              ...prev,
+              decks: pdfs.map((pdf) => ({
+                id: pdf._id || uid(),
+                status: "ready",
+                fileName: pdf.sourceName || "Documento PDF",
+                lastUpdatedAt: pdf.createdAt,
+                error: null,
+                cloudinaryUrl: pdf.url || "",
+              })),
+            }));
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching PDF history:", err);
       }
+    };
 
-      // --- ARCHIVOS (PDFs) ---
-      const remoteFiles = validData.files || validData.uploadedFiles || [];
-      if (
-        Array.isArray(remoteFiles) &&
-        remoteFiles.length > 0 &&
-        prev.decks.length === 0
-      ) {
-        console.log("➡️ Loading Files found:", remoteFiles.length);
-        next.decks = remoteFiles.map((f) => ({
-          id: f._id || f.id || uid(),
-          status: "ready",
-          fileName: f.name || f.originalName || f.fileName || "Documento",
-          cloudinaryUrl: f.url || f.path, // URL real
-          lastUpdatedAt: f.createdAt || new Date().toISOString(),
-          error: null,
-        }));
-        hasChanges = true;
-      }
-
-      // --- AI ---
-      // Si hay misión o visión, asumimos que hay datos
-      if (
-        (validData.mission || validData.vision) &&
-        prev.ai.status === "none"
-      ) {
-        console.log("➡️ Loading AI Data found");
-        next.ai = {
-          status: "ready",
-          lastUpdatedAt: validData.updatedAt || new Date().toISOString(),
-        };
-        hasChanges = true;
-      }
-
-      return hasChanges ? next : prev;
-    });
-  }, [companyData, loading]);
+    fetchPdfHistory();
+  }, [companyData, loading, token]);
 
   // =========================================================
-  // ... RESTO DE LA LÓGICA (Sin cambios) ...
+  // 2. SIGNAL HANDLER
   // =========================================================
-
-  // Manejo de señal de IA completada
   useEffect(() => {
     if (!aiCompletedSignal) return;
     setSources((prev) => ({
@@ -136,7 +121,9 @@ export function useBrandSources({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiCompletedSignal]);
 
-  // Helpers
+  // =========================================================
+  // 3. HELPERS
+  // =========================================================
   function openConfirm(opts) {
     setConfirm({ open: true, ...opts });
   }
@@ -151,19 +138,46 @@ export function useBrandSources({
     setError("");
   }
 
-  // Website Actions
-  function clearWebsiteSource() {
+  // =========================================================
+  // 4. WEBSITE LOGIC
+  // =========================================================
+  async function clearWebsiteSource() {
     setSources((prev) => ({
       ...prev,
-      website: { status: "none", url: "", lastUpdatedAt: null, error: null },
+      website: {
+        status: "none",
+        url: "",
+        lastUpdatedAt: null,
+        error: null,
+        data: null,
+      },
     }));
     setWebsiteUrl("");
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/brand/sources/website`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (!res.ok) throw new Error("Failed to clear website on server");
+      const data = await res.json();
+      if (data.companyData) updateCompanyState(data.companyData);
+    } catch (err) {
+      console.error("Error clearing website:", err);
+      setError("Could not delete website source from server.");
+    }
   }
 
   async function handleImportFromWebsite() {
     setError("");
     const url = websiteUrl.trim();
-    if (!url) return setError("Please enter a website URL.");
+    if (!url) {
+      setError("Please enter a valid website URL.");
+      return;
+    }
 
     setSources((prev) => ({
       ...prev,
@@ -172,50 +186,91 @@ export function useBrandSources({
     onStartImport?.("website");
 
     try {
-      // Simulación (Conectar API real si existe)
-      await new Promise((r) => setTimeout(r, 1500));
-      const next = {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/brand/import/url`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ url: url }),
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to analyze website.");
+
+      updateCompanyState(data.companyData);
+
+      const nextState = {
         ...sources,
         website: {
           status: "ready",
           url,
           lastUpdatedAt: new Date().toISOString(),
           error: null,
+          data: data.companyData,
+          sourceId: data.sourceId,
         },
       };
-      setSources((prev) => ({ ...prev, website: next.website }));
-      onDraftReady?.(buildDraftFromSources(next));
+
+      setSources((prev) => ({ ...prev, website: nextState.website }));
+
+      setTimeout(() => {
+        onDraftReady?.(buildDraftFromSources(nextState));
+      }, 0);
     } catch (e) {
+      console.error("Web import error:", e);
       setSources((prev) => ({
         ...prev,
         website: {
           ...prev.website,
           status: "failed",
-          error: "Failed to import website.",
+          error: e.message || "Failed to analyze website.",
         },
       }));
-      setError("Failed to import from website.");
+      setError(e.message || "Failed to analyze website. Please check the URL.");
       onImportFailed?.();
     }
   }
 
   async function handleReimportWebsite() {
-    if (!sources.website.url) return;
-    setWebsiteUrl(sources.website.url);
+    if (!websiteUrl) return;
     await handleImportFromWebsite();
   }
 
-  // Files Actions
+  // =========================================================
+  // 5. FILE LOGIC (CORREGIDO PARA EVITAR ERROR REACT)
+  // =========================================================
   function clearAllDecks() {
     setSources((prev) => ({ ...prev, decks: [] }));
     if (fileRef.current) fileRef.current.value = "";
   }
 
-  function removeDeck(deckId) {
+  async function removeDeck(deckId) {
+    const previousDecks = sources.decks;
     setSources((prev) => ({
       ...prev,
       decks: prev.decks.filter((d) => d.id !== deckId),
     }));
+
+    try {
+      if (deckId.length === 24) {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/brand/sources/${deckId}`,
+          {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        if (!res.ok) throw new Error("Failed to delete source");
+      }
+    } catch (err) {
+      console.error("Error removing deck:", err);
+      setError("Could not delete file from server.");
+      setSources((prev) => ({ ...prev, decks: previousDecks }));
+    }
   }
 
   function triggerDeckPicker() {
@@ -255,11 +310,14 @@ export function useBrandSources({
         const formData = new FormData();
         formData.append("file", file);
 
-        const res = await fetch(`${BACKEND_URL}/api/v1/brand/import/files`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/brand/import/files`,
+          {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData,
+          }
+        );
 
         const data = await res.json();
         if (!res.ok)
@@ -268,6 +326,13 @@ export function useBrandSources({
       });
 
       const results = await Promise.all(uploadPromises);
+
+      if (results.length > 0) {
+        const lastResult = results[results.length - 1];
+        if (lastResult.result.companyData) {
+          updateCompanyState(lastResult.result.companyData);
+        }
+      }
 
       setSources((prev) => {
         const updatedDecks = prev.decks.map((d) => {
@@ -284,8 +349,15 @@ export function useBrandSources({
           }
           return d;
         });
+
         const nextState = { ...prev, decks: updatedDecks };
-        onDraftReady?.(buildDraftFromSources(nextState));
+
+        // 🛑 FIX: Usamos setTimeout para sacar la actualización del padre
+        // del ciclo de renderizado actual y evitar el error de React.
+        setTimeout(() => {
+          onDraftReady?.(buildDraftFromSources(nextState));
+        }, 0);
+
         return nextState;
       });
     } catch (e2) {

@@ -155,13 +155,12 @@ export function useBrandDetails() {
 
       setToast({
         type: "success",
-        message: "Saved! Continuing to Campaigns...",
+        message: "Saved! Redirecting to Brand AI...",
       });
 
-      // 5. Redirigir
       setTimeout(() => {
         setToast(null);
-        router.push("/chat/campaign"); // O a donde corresponda en tu flujo
+        router.push("/chat/brand-ai");
       }, 1000);
     } catch (err) {
       console.error(err);

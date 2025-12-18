@@ -18,7 +18,10 @@ function StatusPill({ status = "none" }) {
       label: "Confirmed",
       cls: "bg-green-50 text-green-700 border-green-200",
     },
-    failed: { label: "Needs review", cls: "bg-red-50 text-red-700 border-red-200" },
+    failed: {
+      label: "Needs review",
+      cls: "bg-red-50 text-red-700 border-red-200",
+    },
   };
 
   const cfg = map[status] || map.none;
@@ -39,17 +42,18 @@ export default function ChatHeader({
   onOpenLeft,
   onOpenRight,
 
-  // ✅ new (optional)
-  brandStatus, // "none" | "importing" | "draft_ready" | "locked" | "failed"
+  // Status Props
+  brandStatus,
   showOnline = true,
   onlineLabel = "online",
-  rightBadgeLabel, // override "campaign mode" if you want
+  rightBadgeLabel,
+  rightActions,
 }) {
   const isCampaign = activeContext !== "general";
 
   return (
-    <header className="h-16 border-b border-gray-100 flex items-center justify-between px-4 lg:px-6 shrink-0 bg-white">
-      {/* LEFT */}
+    <header className="h-16 border-b border-gray-100 flex items-center justify-between px-4 lg:px-6 shrink-0 bg-white z-20 relative">
+      {/* LEFT: Menu & Titles */}
       <div className="flex items-center gap-3 min-w-0">
         {/* Mobile: open left sidebar */}
         <button
@@ -62,11 +66,12 @@ export default function ChatHeader({
 
         {/* Title + subtitle */}
         <div className="min-w-0">
-          <h2 className="font-bold text-gray-800 text-sm lg:text-base truncate max-w-[260px]">
+          <h2 className="font-bold text-gray-800 text-sm lg:text-base truncate max-w-50 sm:max-w-md">
             {headerTitle}
           </h2>
 
-          {showOnline ? (
+          {/* Solo mostramos el estado online si NO estamos en modo edición  */}
+          {!rightActions && showOnline ? (
             <p className="text-xs text-gray-500 flex items-center gap-1">
               <span className="w-2 h-2 bg-green-500 rounded-full inline-block mt-1" />
               <span>{onlineLabel}</span>
@@ -75,26 +80,34 @@ export default function ChatHeader({
         </div>
       </div>
 
-      {/* RIGHT */}
+      {/* RIGHT: Actions or Badges */}
       <div className="flex items-center gap-2">
-        {/* Campaign badge */}
-        {isCampaign ? (
-          <span className="hidden lg:inline-block px-3 py-1 bg-purple-50 text-purple-700 text-xs font-medium rounded-full border border-purple-100">
-            {rightBadgeLabel || "campaign mode"}
-          </span>
-        ) : null}
+        {rightActions ? (
+          /* CASO A: Estamos editando. Mostramos los botones inyectados (Save/Cancel) */
+          <>{rightActions}</>
+        ) : (
+          /* CASO B: Estamos navegando normal. Mostramos Badges y Pills */
+          <>
+            {/* Campaign badge */}
+            {isCampaign ? (
+              <span className="hidden lg:inline-block px-3 py-1 bg-purple-50 text-purple-700 text-xs font-medium rounded-full border border-purple-100">
+                {rightBadgeLabel || "campaign mode"}
+              </span>
+            ) : null}
 
-        {/* Brand approval/status */}
-        {brandStatus ? <StatusPill status={brandStatus} /> : null}
+            {/* Brand approval/status */}
+            {brandStatus ? <StatusPill status={brandStatus} /> : null}
 
-        {/* Mobile: open right sidebar */}
-        <button
-          onClick={onOpenRight}
-          className="lg:hidden p-2 text-purple-600 hover:bg-purple-50 rounded-lg bg-white border border-gray-200 shadow-sm"
-          aria-label="Open details panel"
-        >
-          <Info className="w-5 h-5" />
-        </button>
+            {/* Mobile: open right sidebar (Info) */}
+            <button
+              onClick={onOpenRight}
+              className="lg:hidden p-2 text-purple-600 hover:bg-purple-50 rounded-lg bg-white border border-gray-200 shadow-sm"
+              aria-label="Open details panel"
+            >
+              <Info className="w-5 h-5" />
+            </button>
+          </>
+        )}
       </div>
     </header>
   );

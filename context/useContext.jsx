@@ -15,19 +15,13 @@ export const AuthProvider = ({ children }) => {
     user: null,
     token: null,
     isAuthenticated: false,
-    loading: true, // Empieza cargando para no redirigir antes de tiempo
+    loading: true,
   });
 
-  // =========================
-  // 0. HIDRATACIÓN (RECUPERAR SESIÓN MANUAL) ⚡️ ESTO FALTABA
-  // =========================
+  // 0. HIDRATACIÓN
   useEffect(() => {
-    // Intentar recuperar token manual del storage
     const storedToken = localStorage.getItem("sweetToken");
-
     if (storedToken) {
-      // Si hay token guardado, lo restauramos y dejamos loading en true
-      // para que el siguiente useEffect busque el perfil
       setAuthState((prev) => ({
         ...prev,
         token: storedToken,
@@ -35,20 +29,17 @@ export const AuthProvider = ({ children }) => {
         loading: true,
       }));
     } else {
-      // Si no hay token manual, esperamos a ver qué dice NextAuth
       if (status === "unauthenticated") {
         setAuthState((prev) => ({ ...prev, loading: false }));
       }
     }
-  }, []); // Se ejecuta solo una vez al montar
+  }, []);
 
-  // =========================
-  // 1. SINCRONIZAR CON NEXTAUTH (GOOGLE)
-  // =========================
+  // 1. SYNC NEXTAUTH (GOOGLE)
   useEffect(() => {
     if (status === "loading") return;
 
-    // Si NextAuth nos da sesión y NO tenemos token manual aun
+    // LOGIN EXITOSO CON GOOGLE
     if (
       status === "authenticated" &&
       session?.user?.accessToken &&
@@ -62,48 +53,37 @@ export const AuthProvider = ({ children }) => {
       }));
     }
 
-    // Si NextAuth terminó y no hay sesión, y tampoco token manual
     if (status === "unauthenticated" && !localStorage.getItem("sweetToken")) {
       setAuthState((prev) => ({ ...prev, loading: false }));
     }
   }, [status, session]);
 
-  // =========================
-  // 2. TRAER DATOS REALES (SI HAY TOKEN)
-  // =========================
+  // 2. FETCH PROFILE (Obtiene el flag onboardingCompleted)
   useEffect(() => {
     if (!authState.token) return;
-
-    // Si ya tenemos usuario (ej. acabamos de loguear), paramos carga
     if (authState.user && authState.loading) {
       setAuthState((prev) => ({ ...prev, loading: false }));
-      // return; // Comentado: A veces queremos refrescar datos igual
     }
 
     const fetchUser = async () => {
       try {
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/v1/user/profile`,
-          {
-            headers: { Authorization: `Bearer ${authState.token}` },
-          }
+          { headers: { Authorization: `Bearer ${authState.token}` } }
         );
-
         const data = await res.json();
-        if (!res.ok) throw new Error("Failed to fetch profile");
+        if (!res.ok) throw new Error("Failed");
 
-        // Estructura segura: backend a veces devuelve data o data.user
         const userData = data.user || data.data || data;
 
         setAuthState({
           user: userData,
           token: authState.token,
           isAuthenticated: true,
-          loading: false, // ¡Listo! Ya podemos mostrar la app
+          loading: false,
         });
       } catch (err) {
         console.error("Error fetching profile:", err);
-        // Si el token no sirve, limpiar todo
         localStorage.removeItem("sweetToken");
         setAuthState({
           user: null,
@@ -113,15 +93,13 @@ export const AuthProvider = ({ children }) => {
         });
       }
     };
-
     fetchUser();
   }, [authState.token]);
 
-  // =========================
-  // 3. ROUTE GUARDS (PROTECCIÓN)
-  // =========================
+  // =========================================================
+  // 3. ROUTE GUARDS (AQUI ESTÁ LA MAGIA 🪄)
+  // =========================================================
   useEffect(() => {
-    // No redirigir mientras estamos verificando tokens
     if (authState.loading) return;
 
     const protectedRoutes = [
@@ -130,54 +108,64 @@ export const AuthProvider = ({ children }) => {
       "/dashboard",
       "/campaign",
       "/thank-u",
+      "/onboarding",
     ];
     const authPages = ["/sign-in", "/sign-up"];
 
-    // a) No autenticado -> fuera de rutas privadas
+    // A. Protección básica: Si no estás logueado, fuera de rutas privadas
     if (
       !authState.isAuthenticated &&
       protectedRoutes.some((r) => pathname.startsWith(r))
     ) {
-      console.log("🔒 Acceso denegado. Redirigiendo a login.");
       router.replace("/sign-in");
       return;
     }
 
-    // b) Autenticado -> fuera de login
-    if (authState.isAuthenticated && authPages.includes(pathname)) {
-      router.replace("/chat");
-    }
-
-    // c) Check Onboarding (Opcional)
+    // B. FORZAR ONBOARDING (Google & Tradicional)
+    // Si estás logueado, pero el backend dice que NO terminaste el onboarding...
     if (
       authState.isAuthenticated &&
       authState.user &&
       !authState.user.onboardingCompleted
     ) {
-      if (pathname !== "/onboarding" && !pathname.startsWith("/api")) {
-        // router.replace("/onboarding"); // Descomentar si usas onboarding forzoso
+      // ...y no estás ya en la página de onboarding...
+      if (pathname !== "/onboarding") {
+        console.log("🚦 Usuario nuevo detectado. Redirigiendo a Onboarding.");
+        router.replace("/onboarding");
+      }
+      return; // Detener aquí para que no ejecute la regla C
+    }
+
+    // C. Si ya completaste onboarding, no te dejo entrar a Login/SignUp/Onboarding
+    if (authState.isAuthenticated && authState.user?.onboardingCompleted) {
+      if (authPages.includes(pathname) || pathname === "/onboarding") {
+        router.replace("/chat");
       }
     }
-  }, [authState.loading, authState.isAuthenticated, pathname, router]);
+  }, [
+    authState.loading,
+    authState.isAuthenticated,
+    authState.user,
+    pathname,
+    router,
+  ]);
 
-  // =========================
-  // 4. MÉTODOS PÚBLICOS
-  // =========================
+  // --- MÉTODOS ---
+
   const loginWithGoogle = () => signIn("google");
 
   const login = (userData, token) => {
-    localStorage.setItem("sweetToken", token); // 💾 GUARDAR TOKEN
+    localStorage.setItem("sweetToken", token);
     setAuthState({
       user: userData,
       token: token,
       isAuthenticated: true,
-      loading: false,
+      loading: false, // Dejamos false para que el Route Guard actúe inmediatamente
     });
-    // La redirección la hace el componente o el route guard
   };
 
   const logout = async () => {
-    localStorage.removeItem("sweetToken"); // 🗑️ BORRAR TOKEN
+    localStorage.removeItem("sweetToken");
     await signOut({ redirect: false });
     setAuthState({
       user: null,
@@ -188,22 +176,75 @@ export const AuthProvider = ({ children }) => {
     router.push("/sign-in");
   };
 
-  const updateOnboarding = async (data) => {
-    // ... (tu lógica de onboarding igual que antes)
-  };
+  const register = async (userData) => {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/register`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userData),
+      }
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Registration failed");
 
+    // Auto-Login
+    if (data.token) {
+      const userObj = data.user || data.data?.user || data;
+      login(userObj, data.token);
+    }
+    return data;
+  };
+  const updateOnboarding = async (data) => {
+    console.log("📤 Enviando datos de onboarding:", data); // LOG PARA DEPURAR
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/user/onboarding`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authState.token}`,
+          },
+          body: JSON.stringify(data),
+        }
+      );
+
+      const response = await res.json();
+
+      if (!res.ok) {
+        console.error("❌ Error Backend Onboarding:", response);
+        throw new Error(response.message || "Onboarding failed");
+      }
+
+      console.log("✅ Onboarding Exitoso:", response);
+
+      setAuthState((prev) => ({
+        ...prev,
+        user: {
+          ...prev.user,
+          ...response.user,
+          onboardingCompleted: true,
+        },
+      }));
+    } catch (error) {
+      console.error("Error en updateOnboarding:", error);
+      throw error; // Lanzamos el error para que el componente muestre el mensaje rojo
+    }
+  };
   return (
     <AuthContext.Provider
-      value={{ ...authState, loginWithGoogle, login, logout, updateOnboarding }}
+      value={{
+        ...authState,
+        loginWithGoogle,
+        login,
+        logout,
+        register,
+        updateOnboarding,
+      }}
     >
-      {/* Si está cargando la sesión inicial, mostramos pantalla blanca o spinner para evitar parpadeos */}
-      {authState.loading ? (
-        <div className="min-h-screen flex items-center justify-center bg-white">
-          {/* Opcional: poner tu logo o spinner aquí */}
-        </div>
-      ) : (
-        children
-      )}
+      {authState.loading ? null : children}
     </AuthContext.Provider>
   );
 };

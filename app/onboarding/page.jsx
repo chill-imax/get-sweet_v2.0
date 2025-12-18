@@ -14,27 +14,27 @@ import {
 } from "lucide-react";
 import logo from "../../public/icons/logogetsweet.png";
 import { INDUSTRIES } from "@/components/utils/industries";
-// Asegúrate de que la ruta sea correcta según tu estructura
 import { COUNTRIES } from "@/components/utils/countries";
 
 export default function Onboarding() {
   const router = useRouter();
   const { user, updateOnboarding, loading } = useAuth();
 
-  // Estado: Separamos el código del número para mejor manejo
+  // Estado del formulario
   const [form, setForm] = useState({
     businessName: "",
     industry: "",
     phoneNumber: "",
-    countryCode: "+1", // Valor inicial por defecto
+    countryCode: "+1", // Default USA
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
 
-  // Buscar el objeto del país seleccionado para mostrar su SVG
-  const selectedCountry =
-    COUNTRIES.find((c) => c.dial_code === form.countryCode) || COUNTRIES[0];
+  // Buscar el objeto del país seleccionado para mostrar su Imagen (Bandera)
+  const selectedCountry = COUNTRIES.find(
+    (c) => c.dial_code === form.countryCode
+  );
 
   useEffect(() => {
     if (!loading && !user) {
@@ -53,8 +53,15 @@ export default function Onboarding() {
 
   if (!user) return null;
 
+  // Manejador genérico
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  // Manejador específico para el teléfono (solo números)
+  const handlePhoneChange = (e) => {
+    const val = e.target.value.replace(/[^\d\s]/g, ""); // Solo dígitos y espacios
+    setForm({ ...form, phoneNumber: val });
   };
 
   const submitOnboarding = async (e) => {
@@ -62,13 +69,13 @@ export default function Onboarding() {
     setIsSubmitting(true);
     setMessage({ type: "", text: "" });
 
-    // Combinar Código + Número antes de enviar
-    const fullPhone = `${form.countryCode} ${form.phoneNumber}`;
+    // Combinar Código + Número
+    const fullPhone = `${form.countryCode} ${form.phoneNumber}`.trim();
 
     const payload = {
       businessName: form.businessName,
       industry: form.industry,
-      phone: fullPhone, // El backend espera 'phone'
+      phone: fullPhone,
     };
 
     try {
@@ -134,7 +141,6 @@ export default function Onboarding() {
             </label>
             <Briefcase className="absolute left-3 top-9 h-5 w-5 text-purple-400" />
             <input
-              id="businessName"
               name="businessName"
               type="text"
               value={form.businessName}
@@ -145,14 +151,13 @@ export default function Onboarding() {
             />
           </div>
 
-          {/* Industry */}
+          {/* Industry Select */}
           <div className="relative">
             <label className="text-sm text-gray-700 font-semibold block mb-1">
               Industry
             </label>
-            <Layers className="absolute left-3 top-9 h-5 w-5 text-purple-400" />
+            <Layers className="absolute left-3 top-9 h-5 w-5 text-purple-400 z-10" />
             <select
-              id="industry"
               name="industry"
               value={form.industry}
               onChange={handleChange}
@@ -173,59 +178,59 @@ export default function Onboarding() {
             </div>
           </div>
 
-          {/* Phone Section (Mejorado con SVG) */}
+          {/* PHONE SECTION (Mejorado con Imagen y Layout 35/65) */}
           <div>
             <label className="text-sm text-gray-700 font-semibold block mb-1">
               Contact Phone
             </label>
-            <div className="flex gap-2">
-              {/* Selector de País */}
-              <div className="relative w-[35%]">
-                {/* 1. Imagen SVG del país seleccionado (Visible cuando está cerrado) */}
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10 flex items-center gap-1">
-                  {selectedCountry && (
+            <div className="flex gap-2 h-10.5">
+              {" "}
+              {/* 1. Selector de País */}
+              <div className="relative w-[50%] h-full group">
+                {/* Imagen de Bandera (Visible siempre) */}
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10 flex items-center justify-center">
+                  {selectedCountry && selectedCountry.image ? (
                     <Image
                       src={selectedCountry.image}
                       alt={selectedCountry.name}
-                      width={5}
-                      height={5}
+                      width={24}
+                      height={16}
                       className="w-6 h-4 object-cover rounded-sm shadow-sm"
                     />
+                  ) : (
+                    <span className="text-lg leading-none">🌐</span>
                   )}
                 </div>
 
-                {/* 2. El Select Real (Texto con padding para no tapar la imagen) */}
+                {/* Select Real */}
                 <select
                   name="countryCode"
                   value={form.countryCode}
                   onChange={handleChange}
-                  className="w-full h-full border border-gray-300 rounded-xl py-2.5 pl-11 pr-6 text-sm bg-gray-50 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none appearance-none cursor-pointer text-gray-800 font-medium"
+                  className="w-full h-full border border-gray-300 rounded-xl py-2 pl-11 pr-6 text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none appearance-none cursor-pointer text-gray-800 font-medium"
                 >
                   {COUNTRIES.map((c, index) => (
                     <option key={`${c.code}-${index}`} value={c.dial_code}>
-                      {c.emoji} {c.dial_code}{" "}
-                      {/* En el dropdown usamos emoji nativo */}
+                      {c.name} ({c.dial_code})
                     </option>
                   ))}
                 </select>
 
-                {/* Flechita */}
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                {/* Flecha */}
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-purple-500 transition-colors">
                   <ChevronDown className="h-3 w-3" />
                 </div>
               </div>
-
-              {/* Input Numérico */}
-              <div className="relative w-[65%]">
-                <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-purple-400" />
+              {/* 2. Input Numérico */}
+              <div className="relative flex-1 h-full group">
+                <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-purple-400 group-focus-within:text-purple-500 transition-colors" />
                 <input
-                  id="phoneNumber"
                   name="phoneNumber"
                   type="tel"
                   value={form.phoneNumber}
-                  onChange={handleChange}
+                  onChange={handlePhoneChange}
                   placeholder="123 456 7890"
-                  className="text-gray-800 w-full border border-gray-300 rounded-xl py-2.5 pl-10 pr-3 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition"
+                  className="w-full h-full text-gray-800 border border-gray-300 rounded-xl py-2 pl-10 pr-3 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition"
                   required
                 />
               </div>
@@ -251,7 +256,7 @@ export default function Onboarding() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className={`w-full flex justify-center items-center gap-2 py-2.5 rounded-xl shadow font-bold text-white transition transform ${
+            className={`w-full flex justify-center items-center gap-2 py-2.5 rounded-xl shadow font-bold text-white transition transform mt-6 ${
               isSubmitting
                 ? "bg-purple-400 cursor-not-allowed"
                 : "bg-linear-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-700 hover:to-purple-700 active:scale-95"

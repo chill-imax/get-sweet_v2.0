@@ -5,11 +5,12 @@ import logo from "../../public/icons/logogetsweet.png";
 import { useState } from "react";
 import { useAuth } from "@/context/useContext";
 import { GoogleLoginBtn } from "@/components/auth/GoogleLogin";
-
-// const GOOGLE_ICON_URL = "https://www.svgrepo.com/show/475656/google-color.svg";
+import { useRouter } from "next/navigation"; // <--- IMPORTANTE
 
 export default function SignUp() {
-  const { register } = useAuth();
+  const router = useRouter(); // <--- INICIALIZAR
+  const { register } = useAuth(); // Ahora sí existe
+
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -28,13 +29,12 @@ export default function SignUp() {
   };
 
   const handleBackToHome = () => {
-    window.location.href = "/";
+    router.push("/"); // Navegación SPA
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validaciones básicas
     if (!agreedToTerms) {
       setMessage({
         type: "error",
@@ -52,6 +52,7 @@ export default function SignUp() {
       setLoading(true);
       setMessage({ type: "", text: "" });
 
+      // Llamamos a la función del context
       await register({
         fullName: form.fullName,
         email: form.email,
@@ -60,13 +61,15 @@ export default function SignUp() {
 
       setMessage({
         type: "success",
-        text: "Account created successfully! Redirecting...",
+        text: "Account created! Going to setup...",
       });
-      setTimeout(() => (window.location.href = "/onboarding"), 1500);
+
+      setTimeout(() => {
+        router.push("/onboarding");
+      }, 1000);
     } catch (error) {
       console.error("Error during registration:", error);
       setMessage({ type: "error", text: error.message });
-    } finally {
       setLoading(false);
     }
   };
@@ -247,8 +250,10 @@ export default function SignUp() {
 
         {message.text && (
           <p
-            className={`mt-4 text-sm ${
-              message.type === "error" ? "text-red-600" : "text-green-600"
+            className={`mt-4 text-sm p-2 rounded border ${
+              message.type === "error"
+                ? "bg-red-50 border-red-200 text-red-600"
+                : "bg-green-50 border-green-200 text-green-600"
             }`}
           >
             {message.text}

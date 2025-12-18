@@ -3,6 +3,7 @@ import {
   RefreshCw,
   Trash2,
   Loader2,
+  Pencil,
   ArrowRight,
 } from "lucide-react";
 import SourceStatusPill from "./SourceStatusPill";
@@ -22,11 +23,10 @@ export default function WebsiteSection({
   const isImporting = source.status === "importing";
 
   return (
-    <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 transition-all hover:border-gray-300">
-      {/* HEADER DEL CARD */}
+    <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-xl bg-white border border-gray-200 flex items-center justify-center shadow-sm">
+          <div className="w-9 h-9 rounded-xl bg-white border border-gray-200 flex items-center justify-center">
             <LinkIcon className="w-4 h-4 text-gray-700" />
           </div>
           <div>
@@ -35,7 +35,7 @@ export default function WebsiteSection({
               <SourceStatusPill status={source.status} />
             </div>
             <p className="text-xs text-gray-600">
-              Auto-extracts mission, services & contact info.
+              Recommended — best for services + contact info
             </p>
           </div>
         </div>

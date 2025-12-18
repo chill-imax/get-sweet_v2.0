@@ -112,14 +112,17 @@ export default function ChatWindow({ activeContext }) {
 
     try {
       // 2. Guardar en Backend
-      const res = await fetch(`${backendUrl}/api/v1/company/tone`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ tone: selectedTone }),
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/company/tone`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ tone: selectedTone }),
+        }
+      );
 
       if (!res.ok) throw new Error("Error updating tone");
 
@@ -174,18 +177,21 @@ export default function ChatWindow({ activeContext }) {
       try {
         if (!token) throw new Error("No autorizado");
 
-        const res = await fetch(`${backendUrl}/api/v1/chat/message`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            userId,
-            userMessage: text,
-            campaignId: activeContext !== "general" ? activeContext : null,
-          }),
-        });
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/chat/message`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              userId,
+              userMessage: text,
+              campaignId: activeContext !== "general" ? activeContext : null,
+            }),
+          }
+        );
 
         const data = await res.json();
 
