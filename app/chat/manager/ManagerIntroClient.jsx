@@ -48,8 +48,8 @@ export default function ManagerIntroClient() {
                 </h1>
                 <p className="mt-2 text-sm md:text-base text-gray-600 max-w-xl">
                   Your personal Marketing Campaign Manager AI. Tell Sweet your
-                  goal and budget — it’ll build campaign structure, generate
-                  ads, and guide you step-by-step.
+                  goal and budget — it&apos;ll build campaign structure,
+                  generate ads, and guide you step-by-step.
                 </p>
 
                 {/* What Sweet can do */}

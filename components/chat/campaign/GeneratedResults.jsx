@@ -118,9 +118,7 @@ export default function GeneratedResults({
           </button>
 
           <button
-            // ✅ CORRECCIÓN: Enviamos datos reales, no el evento "e"
             onClick={() => {
-              // Si hay seleccionados, enviamos el array. Si no, enviamos null (para indicar TODOS)
               const groupsToPublish =
                 selectedIndices.length > 0 ? selectedIndices : null;
               onApprove(groupsToPublish);
@@ -139,9 +137,6 @@ export default function GeneratedResults({
   );
 }
 
-// ... El resto del código (AdGroupResultCard, etc.) se mantiene igual ...
-// (Asegúrate de copiar el resto de tu archivo original aquí abajo o mantenerlo igual)
-// Solo modifiqué la parte del `return` principal y el onClick del botón Approve.
 function AdGroupResultCard({
   group,
   index,

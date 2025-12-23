@@ -1,5 +1,5 @@
 import { SidebarSection } from "@/components/chat/ui/SidebarSection";
-import EditableColorPalette from "@/components/chat/ui/EditableColorPalette";
+import EditableColorPalette from "@/components/ui/inputs/EditableColorPalette";
 
 export default function ColorsSection({
   isOpen,

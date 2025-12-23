@@ -1,6 +1,6 @@
 import { SidebarSection } from "@/components/chat/ui/SidebarSection";
-import { EditableField } from "@/components/chat/ui/EditableField";
-import { EditableList } from "@/components/chat/ui/EditableList";
+import { EditableField } from "@/components/ui/inputs/EditableField";
+import { EditableList } from "@/components/ui/inputs/EditableList";
 
 export default function GoalsSection({ isOpen, onToggle, formData, onChange }) {
   const goalsArr = Array.isArray(formData.supportingGoals)

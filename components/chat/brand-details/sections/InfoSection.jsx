@@ -1,8 +1,8 @@
-import { ChevronDown } from "lucide-react"; // Importamos icono para el dropdown
+import { ChevronDown } from "lucide-react";
 import { SidebarSection } from "@/components/chat/ui/SidebarSection";
-import { EditableField } from "@/components/chat/ui/EditableField";
+import { EditableField } from "@/components/ui/inputs/EditableField";
 import { INDUSTRIES } from "@/components/utils/industries";
-import { EditableSelect } from "../../ui/EditableSelect";
+import { EditableSelect } from "../../../ui/inputs/EditableSelect";
 
 export default function InfoSection({ isOpen, onToggle, formData, onChange }) {
   const preview = [formData.brandName, formData.aka, formData.industry]

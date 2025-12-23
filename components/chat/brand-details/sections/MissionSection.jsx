@@ -1,5 +1,5 @@
 import { SidebarSection } from "@/components/chat/ui/SidebarSection";
-import { EditableTextArea } from "@/components/chat/ui/EditableTextArea";
+import { EditableTextArea } from "@/components/ui/inputs/EditableTextArea";
 
 export default function MissionSection({
   isOpen,

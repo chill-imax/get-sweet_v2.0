@@ -14,7 +14,6 @@ import { useBrandDetails } from "@/components/chat/brand-details/useBrandDetails
 // Componentes de Secciones
 import InfoSection from "@/components/chat/brand-details/sections/InfoSection";
 import MissionSection from "@/components/chat/brand-details/sections/MissionSection";
-// import GoalsSection from "@/components/chat/brand-details/sections/GoalsSection";
 import ListsSection from "@/components/chat/brand-details/sections/ListsSection";
 import ColorsSection from "@/components/chat/brand-details/sections/ColorsSection";
 import GoalsSection from "@/components/chat/brand-details/sections/GoalsSection";

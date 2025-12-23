@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image"; // ✅ Importamos Image
+import Image from "next/image";
 import { useAuth } from "@/context/useContext";
 import { useCompany } from "@/context/CompanyContext";
 import {
@@ -25,8 +25,8 @@ export default function SettingsForm() {
     loading: loadingCompany,
   } = useCompany();
 
-  // Estados para el teléfono desglosado. Default USA (+1)
-  const [phoneCode, setPhoneCode] = useState("+1");
+  // Estados para el teléfono. Default USA (+1)
+  const [countryISO, setCountryISO] = useState("US");
   const [phoneNumber, setPhoneNumber] = useState("");
 
   const [formData, setFormData] = useState({
@@ -40,38 +40,27 @@ export default function SettingsForm() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  // ✅ Encontrar el país seleccionado usando el dial_code
-  const selectedCountry = COUNTRIES.find((c) => c.dial_code === phoneCode);
+  // Helper para encontrar bandera
+  const selectedCountry = COUNTRIES.find((c) => c.code === countryISO);
 
   // =========================================================
-  // 1. CARGA DE DATOS (HYDRATION)
+  // 1. CARGA DE DATOS (DIRECTA)
   // =========================================================
   useEffect(() => {
     if (user && companyData) {
-      let code = "+1";
-      let number = "";
-      const rawPhone = companyData.phone || "";
+      const loadedISO = companyData.countryCode || "US";
+
+      const countryData = COUNTRIES.find((c) => c.code === loadedISO);
+      const dialCode = countryData ? countryData.dial_code : "+1";
+      let rawPhone = companyData.phone || "";
 
       // Lógica de separación de teléfono
-      if (rawPhone.includes(" ")) {
-        const parts = rawPhone.split(" ");
-        code = parts[0];
-        number = parts.slice(1).join(" ");
-      } else if (rawPhone) {
-        // Intento de búsqueda si no hay espacios
-        const countryMatch = COUNTRIES.find((c) =>
-          rawPhone.startsWith(c.dial_code)
-        );
-        if (countryMatch) {
-          code = countryMatch.dial_code;
-          number = rawPhone.replace(countryMatch.dial_code, "");
-        } else {
-          number = rawPhone;
-        }
+      if (rawPhone.startsWith(dialCode)) {
+        rawPhone = rawPhone.replace(dialCode, "").trim();
       }
 
-      setPhoneCode(code);
-      setPhoneNumber(number);
+      setCountryISO(loadedISO);
+      setPhoneNumber(rawPhone);
 
       const cleanData = {
         fullName: user.name || user.fullName || "",
@@ -81,7 +70,11 @@ export default function SettingsForm() {
       };
 
       setFormData(cleanData);
-      setInitialData({ ...cleanData, phone: rawPhone });
+      setInitialData({
+        ...cleanData,
+        phone: companyData.phone,
+        countryCode: loadedISO,
+      });
     }
   }, [user, companyData]);
 
@@ -98,9 +91,13 @@ export default function SettingsForm() {
     setSaved(false);
 
     try {
-      const promises = [];
-      const fullPhone = `${phoneCode} ${phoneNumber}`.trim();
+      const currentDialCode =
+        COUNTRIES.find((c) => c.code === countryISO)?.dial_code || "+1";
+      const fullPhone = `${currentDialCode} ${phoneNumber}`.trim();
 
+      const isoCodeToSend = countryISO;
+
+      const promises = [];
       // A. Usuario
       if (formData.fullName !== initialData.fullName) {
         const userPromise = fetch(
@@ -121,13 +118,15 @@ export default function SettingsForm() {
       const companyChanged =
         formData.businessName !== initialData.businessName ||
         formData.industry !== initialData.industry ||
-        fullPhone !== initialData.phone;
+        fullPhone !== initialData.phone ||
+        isoCodeToSend !== initialData.countryCode;
 
       if (companyChanged) {
         const companyPayload = {
           businessName: formData.businessName,
           industry: formData.industry,
           phone: fullPhone,
+          countryCode: isoCodeToSend,
         };
 
         const companyPromise = fetch(
@@ -142,7 +141,6 @@ export default function SettingsForm() {
           }
         ).then(async (res) => {
           if (res.ok) {
-            const json = await res.json();
             const updated = { ...companyData, ...companyPayload };
             updateCompanyState(updated);
           }
@@ -154,7 +152,11 @@ export default function SettingsForm() {
 
       await Promise.all(promises);
 
-      setInitialData({ ...formData, phone: fullPhone });
+      setInitialData({
+        ...formData,
+        phone: fullPhone,
+        countryCode: isoCodeToSend,
+      });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
@@ -164,11 +166,18 @@ export default function SettingsForm() {
     }
   };
 
-  const currentFullPhone = `${phoneCode} ${phoneNumber}`.trim();
+  const currentDial =
+    COUNTRIES.find((c) => c.code === countryISO)?.dial_code || "";
+  const currentFullPhone = `${currentDial} ${phoneNumber}`.trim();
   const hasChanges =
     JSON.stringify(formData) !==
-      JSON.stringify({ ...initialData, phone: undefined }) ||
-    currentFullPhone !== initialData?.phone;
+      JSON.stringify({
+        ...initialData,
+        phone: undefined,
+        countryCode: undefined,
+      }) ||
+    currentFullPhone !== (initialData?.phone || "") ||
+    countryISO !== (initialData?.countryCode || "US");
 
   if (!user || loadingCompany) {
     return (
@@ -258,7 +267,6 @@ export default function SettingsForm() {
             Contact Phone
           </label>
           <div className="flex gap-2 h-10">
-            {/* 1. Selector de País (Izquierda - 35%) */}
             <div className="relative w-[35%] h-full group">
               {/* ✅ A. Bandera Absoluta (Se muestra SOLO si hay un país seleccionado válido) */}
               <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10 flex items-center justify-center">
@@ -266,7 +274,7 @@ export default function SettingsForm() {
                   <Image
                     src={selectedCountry.image}
                     alt={selectedCountry.name}
-                    width={24} // Ajusta según el tamaño de tus iconos
+                    width={24}
                     height={16}
                     className="w-6 h-4 object-cover rounded-sm shadow-sm"
                   />
@@ -275,30 +283,27 @@ export default function SettingsForm() {
                 )}
               </div>
 
-              {/* ✅ B. Select Real (Transparente para que se vea la bandera, pero con texto visible al abrir) */}
               <select
-                value={phoneCode}
+                value={countryISO}
                 onChange={(e) => {
-                  setPhoneCode(e.target.value);
+                  setCountryISO(e.target.value);
                   setSaved(false);
                 }}
                 className="w-full h-full border border-gray-300 rounded-xl py-2 pl-11 pr-6 text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none appearance-none cursor-pointer text-gray-800 font-medium"
               >
                 {COUNTRIES.map((c, index) => (
-                  // Usamos index en la key por seguridad si hay códigos repetidos
-                  <option key={`${c.code}-${index}`} value={c.dial_code}>
+                  <option key={`${c.code}-${index}`} value={c.code}>
                     {c.name} ({c.dial_code})
                   </option>
                 ))}
               </select>
 
-              {/* ✅ C. Flechita Custom */}
               <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-purple-500 transition-colors">
                 <ChevronDown className="h-3 w-3" />
               </div>
             </div>
 
-            {/* 2. Input Numérico (Derecha - Resto) */}
+            {/* 2. Input Numérico */}
             <div className="relative flex-1 h-full group">
               <PhoneIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-purple-500 transition-colors" />
               <input
@@ -310,7 +315,7 @@ export default function SettingsForm() {
                   setPhoneNumber(val);
                   setSaved(false);
                 }}
-                placeholder="412 123 4567"
+                placeholder="555 123 4567"
                 className="w-full h-full border border-gray-300 rounded-xl py-2 pl-10 pr-3 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition"
               />
             </div>

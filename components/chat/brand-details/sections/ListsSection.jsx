@@ -1,5 +1,5 @@
 import { SidebarSection } from "@/components/chat/ui/SidebarSection";
-import { EditableList } from "@/components/chat/ui/EditableList";
+import { EditableList } from "@/components/ui/inputs/EditableList";
 
 export default function ListsSection({
   title,

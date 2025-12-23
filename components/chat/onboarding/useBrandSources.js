@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/context/useContext";
 import { useCompany } from "@/context/CompanyContext";
+import { useToast } from "@/context/ToastContext"; // ✅ 1. Importamos Toast
 import { uid, buildDraftFromSources } from "./utils";
 
 export function useBrandSources({
@@ -14,6 +15,7 @@ export function useBrandSources({
 }) {
   const { token } = useAuth();
   const { companyData, updateCompanyState, loading } = useCompany();
+  const toast = useToast(); // ✅ 2. Inicializamos Toast
 
   const [sources, setSources] = useState({
     website: {
@@ -62,6 +64,7 @@ export function useBrandSources({
       },
       ai: {
         ...prev.ai,
+        // Si hay misión o visión, asumimos que hubo interacción o datos
         status: companyData.mission || companyData.vision ? "ready" : "none",
         lastUpdatedAt: companyData.updatedAt,
       },
@@ -134,7 +137,14 @@ export function useBrandSources({
   function resetAllSources() {
     clearWebsiteSource();
     clearAllDecks();
-    clearAISource();
+    // Nota: resetAllSources es visual.
+    // Si quieres que el botón "Reset All" general también borre el chat,
+    // el handleDeepReset del componente padre se encarga de llamar a la API global.
+    // Aquí solo limpiamos el estado visual local.
+    setSources((prev) => ({
+      ...prev,
+      ai: { status: "none", lastUpdatedAt: null },
+    }));
     setError("");
   }
 
@@ -241,7 +251,7 @@ export function useBrandSources({
   }
 
   // =========================================================
-  // 5. FILE LOGIC (CORREGIDO PARA EVITAR ERROR REACT)
+  // 5. FILE LOGIC
   // =========================================================
   function clearAllDecks() {
     setSources((prev) => ({ ...prev, decks: [] }));
@@ -352,8 +362,6 @@ export function useBrandSources({
 
         const nextState = { ...prev, decks: updatedDecks };
 
-        // 🛑 FIX: Usamos setTimeout para sacar la actualización del padre
-        // del ciclo de renderizado actual y evitar el error de React.
         setTimeout(() => {
           onDraftReady?.(buildDraftFromSources(nextState));
         }, 0);
@@ -377,11 +385,37 @@ export function useBrandSources({
     }
   }
 
-  function clearAISource() {
-    setSources((prev) => ({
-      ...prev,
-      ai: { status: "none", lastUpdatedAt: null },
-    }));
+  // =========================================================
+  // 6. AI LOGIC (✅ AHORA CONECTADO AL BACKEND)
+  // =========================================================
+  async function clearAISource() {
+    try {
+      // 1. Llamada a la API para borrar historial
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/chat/history`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error("Failed to clear history on server");
+      }
+
+      // 2. Limpiar estado visual (vuelve a 'none' para mostrar "Start Interview")
+      setSources((prev) => ({
+        ...prev,
+        ai: { status: "none", lastUpdatedAt: null },
+      }));
+
+      toast?.success("Conversation history cleared!");
+    } catch (err) {
+      console.error("Error clearing AI history:", err);
+      toast?.error("Could not clear conversation history.");
+    }
   }
 
   return {

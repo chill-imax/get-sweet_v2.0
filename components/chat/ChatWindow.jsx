@@ -7,7 +7,7 @@ import TypingIndicator from "./TypingIndicator";
 import SuggestionChips from "./SuggestionChips";
 import ChatInput from "./ChatInput";
 import { useAuth } from "@/context/useContext";
-import ToneSelector from "./ui/ToneSelector";
+import ToneSelector from "../ui/inputs/ToneSelector";
 
 export default function ChatWindow({ activeContext }) {
   const { token, user } = useAuth();

@@ -1,9 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
-import { RotateCcw } from "lucide-react";
+import { useMemo, useState } from "react";
+import { RotateCcw, Loader2 } from "lucide-react";
 
-// Imports Modulares (Ajusta la ruta según tu estructura)
+// Contextos
+import { useAuth } from "@/context/useContext";
+import { useToast } from "@/context/ToastContext";
+
+// Imports Modulares
 import { useBrandSources } from "./useBrandSources";
 import { buildDraftFromSources } from "./utils";
 import ConfirmModal from "./ConfirmModal";
@@ -21,6 +25,12 @@ export default function BrandImportPanel({
   onAICompletedHandled,
   onConfirmBrand,
 }) {
+  const { token } = useAuth();
+  const toast = useToast();
+
+  // Estado local para el loading del botón Reset
+  const [isResetting, setIsResetting] = useState(false);
+
   // Toda la lógica de negocio y contexto vive aquí dentro
   const {
     sources,
@@ -51,6 +61,37 @@ export default function BrandImportPanel({
 
   const isLocked = brandStatus === "locked";
 
+  // --- LÓGICA DE RESET COMPLETO (DB + FRONT) ---
+  const handleDeepReset = async () => {
+    setIsResetting(true);
+    try {
+      // 1. Limpiar en Base de Datos (Estrategia + Sources)
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/company/brand-reset`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!res.ok) throw new Error("Failed to reset brand data on server");
+
+      // 2. Si el servidor respondió OK, limpiamos el Frontend
+      resetAllSources();
+
+      toast?.success("Brand data cleared successfully");
+    } catch (err) {
+      console.error(err);
+      toast?.error("Error resetting brand data");
+    } finally {
+      setIsResetting(false);
+      closeConfirm();
+    }
+  };
+
   const anySourceReady =
     sources.website.status === "ready" ||
     sources.decks.some((d) => d.status === "ready") ||
@@ -78,18 +119,23 @@ export default function BrandImportPanel({
           </div>
 
           <button
-            disabled={isBusy || isLocked}
+            disabled={isBusy || isLocked || isResetting}
             onClick={() =>
               openConfirm({
-                title: "Reset all sources?",
-                body: "This will remove the website, uploaded PDFs, and AI answers from this setup screen.",
-                confirmText: "Reset",
-                action: resetAllSources,
+                title: "Reset all brand data?",
+                body: "This will delete all saved brand info (Website, PDFs, AI Chat) from the database and clear the current form. This action cannot be undone.",
+                confirmText: isResetting ? "Clearing..." : "Reset Everything",
+                action: handleDeepReset, // ✅ Acción conectada al Backend
+                isDanger: true,
               })
             }
-            className="h-9 px-3 rounded-xl bg-white border border-gray-200 text-xs font-bold text-gray-800 hover:bg-gray-100 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+            className="h-9 px-3 rounded-xl bg-white border border-gray-200 text-xs font-bold text-gray-800 hover:bg-red-50 hover:text-red-600 hover:border-red-200 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2 transition-colors"
           >
-            <RotateCcw className="w-4 h-4" />
+            {isResetting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RotateCcw className="w-4 h-4" />
+            )}
             Reset all
           </button>
         </div>
@@ -126,7 +172,7 @@ export default function BrandImportPanel({
             source={sources.ai}
             isLocked={isLocked}
             onGoToSetup={onGoToAIBrandSetup}
-            onClear={clearAISource}
+            onClear={clearAISource} // ✅ Esto borra historial de chat
             openConfirm={openConfirm}
           />
 
@@ -139,7 +185,7 @@ export default function BrandImportPanel({
 
           {/* CONFIRM ACTION */}
           {(brandStatus === "draft_ready" || anySourceReady) && !isLocked && (
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center justify-between">
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center justify-between animate-in fade-in slide-in-from-bottom-2">
               <div>
                 <p className="text-sm font-semibold text-green-900">
                   Brand draft ready
@@ -153,7 +199,7 @@ export default function BrandImportPanel({
                   const draft = buildDraftFromSources(sources);
                   onConfirmBrand?.(draft);
                 }}
-                className="h-10 px-4 rounded-xl bg-green-700 text-white text-sm font-semibold hover:bg-green-800"
+                className="h-10 px-4 rounded-xl bg-green-700 text-white text-sm font-semibold hover:bg-green-800 transition-all shadow-sm hover:shadow-md"
               >
                 Confirm brand
               </button>

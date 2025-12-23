@@ -20,21 +20,18 @@ export default function Onboarding() {
   const router = useRouter();
   const { user, updateOnboarding, loading } = useAuth();
 
-  // Estado del formulario
   const [form, setForm] = useState({
     businessName: "",
     industry: "",
     phoneNumber: "",
-    countryCode: "+1", // Default USA
+    countryCode: "US",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
 
-  // Buscar el objeto del país seleccionado para mostrar su Imagen (Bandera)
-  const selectedCountry = COUNTRIES.find(
-    (c) => c.dial_code === form.countryCode
-  );
+  // Buscar el objeto del país seleccionado usando el ISO CODE
+  const selectedCountry = COUNTRIES.find((c) => c.code === form.countryCode);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -53,14 +50,12 @@ export default function Onboarding() {
 
   if (!user) return null;
 
-  // Manejador genérico
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // Manejador específico para el teléfono (solo números)
   const handlePhoneChange = (e) => {
-    const val = e.target.value.replace(/[^\d\s]/g, ""); // Solo dígitos y espacios
+    const val = e.target.value.replace(/[^\d\s]/g, "");
     setForm({ ...form, phoneNumber: val });
   };
 
@@ -69,13 +64,24 @@ export default function Onboarding() {
     setIsSubmitting(true);
     setMessage({ type: "", text: "" });
 
-    // Combinar Código + Número
-    const fullPhone = `${form.countryCode} ${form.phoneNumber}`.trim();
+    const currentCountry = COUNTRIES.find((c) => c.code === form.countryCode);
+    const dialCode = currentCountry ? currentCountry.dial_code : "+1";
+
+    const dialDigits = dialCode.replace("+", "");
+    let cleanNumber = form.phoneNumber.trim();
+
+    if (cleanNumber.startsWith(dialDigits)) {
+      cleanNumber = cleanNumber.substring(dialDigits.length).trim();
+    }
+
+    // 3. Construimos el teléfono final limpio: "+58 412..."
+    const fullPhone = `${dialCode} ${cleanNumber}`.trim();
 
     const payload = {
       businessName: form.businessName,
       industry: form.industry,
       phone: fullPhone,
+      countryCode: form.countryCode,
     };
 
     try {
@@ -178,16 +184,15 @@ export default function Onboarding() {
             </div>
           </div>
 
-          {/* PHONE SECTION (Mejorado con Imagen y Layout 35/65) */}
+          {/* PHONE SECTION */}
           <div>
             <label className="text-sm text-gray-700 font-semibold block mb-1">
               Contact Phone
             </label>
             <div className="flex gap-2 h-10.5">
-              {" "}
-              {/* 1. Selector de País */}
+              {/* 1. Selector de País (Guarda el CODE 'US', 'VE') */}
               <div className="relative w-[50%] h-full group">
-                {/* Imagen de Bandera (Visible siempre) */}
+                {/* Imagen de Bandera */}
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10 flex items-center justify-center">
                   {selectedCountry && selectedCountry.image ? (
                     <Image
@@ -210,17 +215,18 @@ export default function Onboarding() {
                   className="w-full h-full border border-gray-300 rounded-xl py-2 pl-11 pr-6 text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none appearance-none cursor-pointer text-gray-800 font-medium"
                 >
                   {COUNTRIES.map((c, index) => (
-                    <option key={`${c.code}-${index}`} value={c.dial_code}>
+                    // VALUE ES EL CODE (US, VE)
+                    <option key={`${c.code}-${index}`} value={c.code}>
                       {c.name} ({c.dial_code})
                     </option>
                   ))}
                 </select>
 
-                {/* Flecha */}
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-purple-500 transition-colors">
                   <ChevronDown className="h-3 w-3" />
                 </div>
               </div>
+
               {/* 2. Input Numérico */}
               <div className="relative flex-1 h-full group">
                 <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-purple-400 group-focus-within:text-purple-500 transition-colors" />
