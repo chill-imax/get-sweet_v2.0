@@ -16,7 +16,7 @@ export default function ChatWindow({ activeContext }) {
   const [guestId, setGuestId] = useState(null);
   const [messages, setMessages] = useState([]);
 
-  // Extracted data (Estado de la verdad)
+  // Datos extraídos del análisis
   const [extracted, setExtracted] = useState({
     mission: "",
     vision: "",
@@ -28,18 +28,14 @@ export default function ChatWindow({ activeContext }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Tone state (UI)
+  // Estado del selector de tono
   const [showToneSelector, setShowToneSelector] = useState(false);
   const [suggestedTone, setSuggestedTone] = useState(null);
 
   const scrollRef = useRef(null);
-
-  // ID real del backend o guest
   const userId = user?._id || guestId;
 
-  // --------------------------------------------------
-  // Crear guest si no hay usuario
-  // --------------------------------------------------
+  // 1. Gestión de Guest ID
   useEffect(() => {
     if (!user) {
       let gid = localStorage.getItem("guestId");
@@ -51,21 +47,19 @@ export default function ChatWindow({ activeContext }) {
     }
   }, [user]);
 
-  // --------------------------------------------------
-  // Cargar historial
-  // --------------------------------------------------
+  // 2. Cargar Historial (Corregido)
   useEffect(() => {
     const fetchHistory = async () => {
-      if (!userId || userId.startsWith("guest-")) return;
-      if (!token) return;
-
       try {
+        const queryParams = new URLSearchParams();
+        if (activeContext && activeContext !== "general") {
+          queryParams.append("campaignId", activeContext);
+        }
+
         const res = await fetch(
           `${
             process.env.NEXT_PUBLIC_API_URL
-          }/api/v1/chat/history/${userId}?campaignId=${
-            activeContext !== "general" ? activeContext : ""
-          }`,
+          }/api/v1/chat/history?${queryParams.toString()}`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -78,40 +72,33 @@ export default function ChatWindow({ activeContext }) {
 
         const data = await res.json();
 
-        setMessages(
-          Array.isArray(data)
-            ? data.map((m) => ({
-                id: m.id || crypto.randomUUID(),
-                role: m.role,
-                text: m.content,
-              }))
-            : []
-        );
-      } catch (err) {
-        console.error("❌ Error cargando historial:", err);
+        // Mapeo crucial: Backend 'content' -> Frontend 'text'
+        const formattedMessages = data.map((msg) => ({
+          id: msg._id || msg.id || crypto.randomUUID(),
+          role: msg.role,
+          text: msg.content, // Aquí solucionamos el undefined
+        }));
+
+        setMessages(formattedMessages);
+      } catch (error) {
+        console.error("❌ Error loading history:", error);
       }
     };
 
-    fetchHistory();
-  }, [userId, token, activeContext]);
+    if (token) fetchHistory();
+  }, [token, activeContext]);
 
-  // --------------------------------------------------
-  // Scroll automático
-  // --------------------------------------------------
+  // 3. Auto-scroll
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading, showToneSelector]);
 
-  // --------------------------------------------------
-  // LÓGICA DE SELECCIÓN DE TONO (Acción del Usuario)
-  // --------------------------------------------------
+  // 4. Cambiar Tono
   const handleToneSelect = async (selectedTone) => {
-    // 1. Actualización optimista (UI inmediata)
     setExtracted((prev) => ({ ...prev, tone: selectedTone }));
-    setSuggestedTone(selectedTone); // Dejarlo marcado visualmente
+    setSuggestedTone(selectedTone);
 
     try {
-      // 2. Guardar en Backend
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/v1/company/tone`,
         {
@@ -125,31 +112,23 @@ export default function ChatWindow({ activeContext }) {
       );
 
       if (!res.ok) throw new Error("Error updating tone");
-
-      // 3. Feedback visual: Cerrar tras éxito
-      // Opcional: Podrías usar un setTimeout si quieres que el usuario vea el click
       setTimeout(() => setShowToneSelector(false), 500);
     } catch (err) {
       console.error("Failed to update tone:", err);
-      // Revertir si falla (opcional)
     }
   };
 
-  // --------------------------------------------------
-  // Envío de mensajes
-  // --------------------------------------------------
+  // 5. Enviar Mensaje
   const handleSend = useCallback(
     async (text) => {
       if (!text || !text.trim()) return;
 
       setIsLoading(true);
       setError("");
-
-      // Limpieza de estados de UI anteriores
       setShowToneSelector(false);
-      setSuggestedTone(null); // <--- IMPORTANTE: Limpiar sugerencias viejas
+      setSuggestedTone(null);
 
-      // 1️⃣ Mostrar mensaje del usuario inmediatamente
+      // UI Optimista
       const userMsg = {
         id: crypto.randomUUID(),
         role: "user",
@@ -157,7 +136,7 @@ export default function ChatWindow({ activeContext }) {
       };
       setMessages((prev) => [...prev, userMsg]);
 
-      // 2️⃣ Guest → respuesta dummy
+      // Modo Guest
       if (!userId || userId.startsWith("guest-")) {
         setTimeout(() => {
           setMessages((prev) => [
@@ -173,10 +152,8 @@ export default function ChatWindow({ activeContext }) {
         return;
       }
 
-      // 3️⃣ Usuario autenticado
+      // Usuario Autenticado
       try {
-        if (!token) throw new Error("No autorizado");
-
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/v1/chat/message`,
           {
@@ -195,12 +172,10 @@ export default function ChatWindow({ activeContext }) {
 
         const data = await res.json();
 
-        if (!res.ok) {
-          throw new Error(data.error || "Error en el servidor");
-        }
+        if (!res.ok) throw new Error(data.error || "Server Error");
 
-        // 4️⃣ Respuesta del asistente
         const replyText = typeof data.reply === "string" ? data.reply : "";
+
         setMessages((prev) => [
           ...prev,
           {
@@ -210,8 +185,6 @@ export default function ChatWindow({ activeContext }) {
           },
         ]);
 
-        // 5️⃣ Actualizar Datos Confirmados (Si vienen del backend)
-        // Nota: El backend ya no envía 'tone' aquí a menos que sea el guardado en DB
         if (data.companyData) {
           setExtracted((prev) => ({
             ...prev,
@@ -219,8 +192,6 @@ export default function ChatWindow({ activeContext }) {
           }));
         }
 
-        // 6️⃣ DETECCIÓN DE INTENCIÓN DE CAMBIO DE TONO
-        // El backend envía: { triggerToneSelector: true, suggestedTone: "Friendly" }
         if (data.triggerToneSelector) {
           setShowToneSelector(true);
           if (data.suggestedTone) {
@@ -228,8 +199,8 @@ export default function ChatWindow({ activeContext }) {
           }
         }
       } catch (err) {
-        console.error("❌ Error:", err);
-        setError("Error de conexión o respuesta del servidor.");
+        console.error("❌ Message Error:", err);
+        setError("Connection error. Please try again.");
       } finally {
         setIsLoading(false);
       }
@@ -239,12 +210,8 @@ export default function ChatWindow({ activeContext }) {
 
   const hasConversation = messages.length > 0;
 
-  // --------------------------------------------------
-  // UI
-  // --------------------------------------------------
   return (
     <div className="flex flex-col h-full w-full bg-white">
-      {/* Área de mensajes */}
       <div className="flex-1 min-h-0 overflow-y-auto px-4 md:px-6 py-6 space-y-6">
         {!hasConversation ? (
           <div className="flex flex-col h-full items-center justify-center text-center p-4">
@@ -266,7 +233,7 @@ export default function ChatWindow({ activeContext }) {
           </div>
         ) : (
           <>
-            {/* ADN Detectado */}
+            {/* Panel de Datos Detectados */}
             {(extracted.mission ||
               extracted.vision ||
               (Array.isArray(extracted.values) &&
@@ -310,7 +277,7 @@ export default function ChatWindow({ activeContext }) {
               </motion.div>
             )}
 
-            {/* Mensajes */}
+            {/* Lista de Mensajes */}
             <div className="space-y-6">
               {messages.map((m) => (
                 <MessageBubble key={m.id} sender={m.role} text={m.text} />
@@ -318,7 +285,7 @@ export default function ChatWindow({ activeContext }) {
 
               {isLoading && <TypingIndicator />}
 
-              {/* SELECTOR DE TONO */}
+              {/* Selector de Tono */}
               {showToneSelector && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
@@ -331,7 +298,6 @@ export default function ChatWindow({ activeContext }) {
                       : "Ajustar tono:"}
                   </div>
                   <ToneSelector
-                    // Si hay sugerencia, mostramos esa. Si no, mostramos el actual.
                     currentTone={suggestedTone || extracted.tone}
                     onSelect={handleToneSelect}
                   />
@@ -344,7 +310,7 @@ export default function ChatWindow({ activeContext }) {
         )}
       </div>
 
-      {/* Input */}
+      {/* Input Area */}
       <div className="p-4 border-t border-gray-100 bg-white sticky bottom-0">
         <div className="max-w-4xl mx-auto">
           {error && (

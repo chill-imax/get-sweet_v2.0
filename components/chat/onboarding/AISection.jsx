@@ -1,5 +1,4 @@
-// components/onboarding/brand-import/AISection.jsx
-import { Sparkles, Trash2 } from "lucide-react";
+import { Sparkles, Trash2, MessageSquare } from "lucide-react";
 import SourceStatusPill from "./SourceStatusPill";
 import { formatTime } from "./utils";
 
@@ -10,22 +9,41 @@ export default function AISection({
   onClear,
   openConfirm,
 }) {
+  // Lógica de estado (se mantiene igual)
+  const hasHistory =
+    source?.hasChatHistory === true || (source?.count && source.count > 0);
+
+  const displayStatus = hasHistory ? "ready" : "empty";
+
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-4">
+    <div className="bg-white border border-gray-200 rounded-2xl p-4 transition-all hover:shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-gray-700" />
+          <div
+            className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-colors ${
+              hasHistory
+                ? "bg-blue-50 border-blue-100 text-blue-600" // Estado Activo (Elegante)
+                : "bg-gray-50 border-gray-200 text-gray-400" // Estado Vacío (Discreto)
+            }`}
+          >
+            {hasHistory ? (
+              <MessageSquare className="w-4 h-4" />
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
           </div>
+
           <div>
             <div className="flex items-center gap-2">
               <p className="text-sm font-semibold text-gray-900">
-                AI questions
+                AI Interview
               </p>
-              <SourceStatusPill status={source.status} />
+              <SourceStatusPill status={displayStatus} />
             </div>
-            <p className="text-xs text-gray-600">
-              Optional — fill gaps after website/docs import.
+            <p className="text-xs text-gray-500">
+              {hasHistory
+                ? "Conversation in progress."
+                : "Optional — fill gaps via chat."}
             </p>
           </div>
         </div>
@@ -34,34 +52,36 @@ export default function AISection({
           <button
             onClick={onGoToSetup}
             disabled={isLocked}
-            className="h-9 px-4 rounded-xl bg-gray-900 text-white text-xs font-bold hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="h-9 px-4 rounded-xl text-xs font-bold bg-gray-900 text-white hover:bg-gray-800 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
           >
-            {source.status === "ready" ? "Update" : "Start"}
+            {hasHistory ? "Continue" : "Start"}
           </button>
 
-          {source.status === "ready" && (
+          {hasHistory && (
             <button
               onClick={() =>
                 openConfirm({
-                  title: "Remove AI answers?",
-                  body: "This clears the AI question results from this setup screen.",
-                  confirmText: "Remove",
+                  title: "Delete Interview History?",
+                  body: "This will permanently delete the chat conversation. This cannot be undone.",
+                  confirmText: "Yes, Delete Chat",
                   action: onClear,
+                  isDanger: true,
                 })
               }
               disabled={isLocked}
-              className="h-9 px-3 rounded-xl bg-white border border-gray-200 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+              className="h-9 px-3 rounded-xl bg-white border border-gray-200 text-xs font-bold text-gray-400 hover:text-red-600 hover:bg-red-50 hover:border-red-200 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2 transition-all"
+              title="Clear chat history"
             >
               <Trash2 className="w-4 h-4" />
-              Remove
+              <span className="hidden sm:inline">Remove</span>
             </button>
           )}
         </div>
       </div>
 
-      {source.lastUpdatedAt && (
-        <div className="mt-3 text-xs text-gray-500">
-          Updated {formatTime(source.lastUpdatedAt)}
+      {hasHistory && source.lastUpdatedAt && (
+        <div className="mt-3 text-xs text-gray-400 pl-1">
+          Last active {formatTime(source.lastUpdatedAt)}
         </div>
       )}
     </div>

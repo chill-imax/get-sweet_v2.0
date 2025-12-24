@@ -17,6 +17,7 @@ import {
   Rocket,
   Eye,
   Globe,
+  Palette, // <--- 1. NUEVO IMPORT
 } from "lucide-react";
 
 import { useCompany } from "@/context/CompanyContext";
@@ -65,6 +66,24 @@ export default function RightSidebar({
     }, 0);
     return () => clearTimeout(t);
   }, [mode]);
+
+  // --- PREPARAR COLORES (Lógica segura) ---
+  const brandColors = useMemo(() => {
+    if (!companyData) return [];
+    // Opción A: Viene como array en 'colors'
+    if (Array.isArray(companyData.colors) && companyData.colors.length > 0) {
+      return companyData.colors;
+    }
+    // Opción B: Viene como propiedades sueltas
+    const colors = [];
+    if (companyData.primaryColor) colors.push(companyData.primaryColor);
+    if (companyData.secondaryColor) colors.push(companyData.secondaryColor);
+
+    // Opción C: Fallback fake si no hay nada (puedes quitar esto si prefieres que no salga nada)
+    if (colors.length === 0) return [];
+
+    return colors;
+  }, [companyData]);
 
   // --- CARGAR DATOS ---
   useEffect(() => {
@@ -149,7 +168,6 @@ export default function RightSidebar({
     if (id && id !== "general") router.push(`/chat/campaign/${id}/agents`);
     close();
   };
-
   const simulateRun = (agentId) => {
     /* ... */
   };
@@ -334,6 +352,32 @@ export default function RightSidebar({
                   label="Vision"
                   value={companyData?.vision || "Not set"}
                 />
+
+                {brandColors.length > 0 && (
+                  <InfoRow
+                    icon={Palette}
+                    label="Brand Colors"
+                    value={
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {brandColors.map((color, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-2 bg-gray-50 border border-gray-200 pr-2 rounded-full"
+                          >
+                            <div
+                              className="w-5 h-5 rounded-full border border-black/10 shadow-sm"
+                              style={{ backgroundColor: color }}
+                              title={color}
+                            />
+                            <span className="text-[10px] font-mono text-gray-600 uppercase">
+                              {color}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    }
+                  />
+                )}
                 <InfoRow
                   icon={Trophy}
                   label="Primary goal"

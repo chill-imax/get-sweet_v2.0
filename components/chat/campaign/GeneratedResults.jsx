@@ -3,7 +3,7 @@
 import {
   ChevronDown,
   ChevronUp,
-  Trash2,
+  // Trash2, // 🗑️ Eliminado
   Check,
   ArrowRight,
   MoreHorizontal,
@@ -12,7 +12,7 @@ import {
   CheckCircle,
   X,
   Loader2,
-  Lock, // 🔒 Icono para indicar bloqueo
+  Lock,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/context/ToastContext";
@@ -20,16 +20,14 @@ import { useToast } from "@/context/ToastContext";
 export default function GeneratedResults({
   structure,
   viewMode,
-  onDiscard,
+  // onDiscard, // 🗑️ Eliminado de props
   onApprove,
   onRegenerateGroup,
   onUpdateGroup,
 }) {
-  // Estado local para manejar selecciones
   const [selectedIndices, setSelectedIndices] = useState([]);
   const [isPublishing, setIsPublishing] = useState(false);
 
-  // Seleccionar automáticamente todos los grupos NO publicados al cargar
   useEffect(() => {
     if (structure?.adGroups) {
       const availableIndices = structure.adGroups
@@ -39,9 +37,8 @@ export default function GeneratedResults({
     }
   }, [structure]);
 
-  // Toggle de selección (protegido contra grupos publicados)
   const toggleSelection = (idx, isPublished) => {
-    if (isPublished) return; // 🔒 No permitir cambiar selección si ya está publicado
+    if (isPublished) return;
     setSelectedIndices((prev) =>
       prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
     );
@@ -62,7 +59,6 @@ export default function GeneratedResults({
 
   if (!structure) return null;
 
-  // Verificar si ya no queda nada por publicar
   const allPublished = structure.adGroups?.every((g) => g.isPublished);
 
   return (
@@ -94,9 +90,8 @@ export default function GeneratedResults({
             index={idx}
             group={group}
             viewMode={viewMode}
-            // Un grupo está "seleccionado" si está en el array O si ya está publicado (para que se vea verde)
             isSelected={selectedIndices.includes(idx)}
-            isPublished={group.isPublished === true} // 🚩 Pasamos la bandera
+            isPublished={group.isPublished === true}
             onToggleSelect={() => toggleSelection(idx, group.isPublished)}
             onRegenerate={() =>
               onRegenerateGroup && onRegenerateGroup(idx, group)
@@ -108,7 +103,7 @@ export default function GeneratedResults({
         ))}
       </div>
 
-      {/* 3. EXTENSIONES (Solo informativo) */}
+      {/* 3. EXTENSIONES */}
       {structure.extensions?.sitelinks?.length > 0 && (
         <div className="border border-gray-200 rounded-2xl p-5 bg-white opacity-80 hover:opacity-100 transition-opacity">
           <h4 className="font-bold text-gray-800 mb-3 text-sm uppercase">
@@ -130,7 +125,7 @@ export default function GeneratedResults({
         </div>
       )}
 
-      {/* 4. ACTION BAR (Solo visible si hay algo que publicar) */}
+      {/* 4. ACTION BAR */}
       {!allPublished && (
         <div className="sticky bottom-4 z-10 bg-gray-900/95 backdrop-blur text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between gap-4 mt-8 border border-gray-700 animate-in slide-in-from-bottom-2">
           <div className="hidden md:block">
@@ -143,13 +138,7 @@ export default function GeneratedResults({
           </div>
 
           <div className="flex items-center gap-3 w-full md:w-auto">
-            <button
-              onClick={onDiscard}
-              disabled={isPublishing}
-              className="flex-1 md:flex-none h-10 px-4 rounded-xl bg-gray-700 hover:bg-gray-600 text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-            >
-              <Trash2 className="w-4 h-4" /> Discard
-            </button>
+            {/* 🗑️ BOTÓN DISCARD ELIMINADO AQUÍ */}
 
             <button
               onClick={handleLaunch}
@@ -184,12 +173,12 @@ export default function GeneratedResults({
   );
 }
 
-// --- TARJETA INDIVIDUAL (CON LOGICA DE ESTADO PUBLICADO) ---
+// --- TARJETA INDIVIDUAL ---
 function AdGroupResultCard({
   group,
   viewMode,
   isSelected,
-  isPublished, // 👈 Nueva prop
+  isPublished,
   onToggleSelect,
   onRegenerate,
   onSaveEdit,
@@ -228,7 +217,7 @@ function AdGroupResultCard({
           border rounded-2xl shadow-sm transition-all relative
           ${
             isPublished
-              ? "bg-gray-50 border-gray-200 opacity-90" // 🎨 Estilo Publicado
+              ? "bg-gray-50 border-gray-200 opacity-90"
               : isSelected
               ? "bg-white border-indigo-500 ring-1 ring-indigo-500 shadow-indigo-100"
               : "bg-white border-gray-200 hover:shadow-md"
@@ -250,10 +239,10 @@ function AdGroupResultCard({
             }}
             className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
               isPublished
-                ? "bg-emerald-100 text-emerald-600 border border-emerald-200 cursor-default" // ✅ Publicado
+                ? "bg-emerald-100 text-emerald-600 border border-emerald-200 cursor-default"
                 : isSelected
-                ? "bg-indigo-600 border-indigo-600 text-white" // ✅ Seleccionado
-                : "border-2 border-gray-300 hover:border-indigo-400 bg-white" // ⬜ Pendiente
+                ? "bg-indigo-600 border-indigo-600 text-white"
+                : "border-2 border-gray-300 hover:border-indigo-400 bg-white"
             }`}
           >
             {(isSelected || isPublished) && (
@@ -321,7 +310,6 @@ function AdGroupResultCard({
               </button>
             </div>
           ) : (
-            // 🔒 Si está publicado, NO mostramos el menú de tres puntos
             !isPublished && (
               <div className="relative">
                 <button
@@ -373,7 +361,6 @@ function AdGroupResultCard({
             )
           )}
 
-          {/* Si está publicado, mostramos candado en lugar de menú */}
           {isPublished && (
             <Lock className="w-4 h-4 text-gray-400 opacity-50 mr-2" />
           )}
@@ -403,7 +390,8 @@ function AdGroupResultCard({
     </div>
   );
 }
-// --- Vista de Solo Lectura (Lo que ya tenías) ---
+
+// --- Vista de Solo Lectura ---
 function ViewModeBody({ group, viewMode }) {
   return (
     <>
@@ -448,16 +436,14 @@ function ViewModeBody({ group, viewMode }) {
   );
 }
 
-// --- Vista de Edición (Inputs) ---
+// --- Vista de Edición ---
 function EditModeBody({ group, setGroup }) {
-  // Función helper para cambiar keywords
   const updateKeyword = (idx, val) => {
     const newKws = [...group.keywords];
     newKws[idx].text = val;
     setGroup({ ...group, keywords: newKws });
   };
 
-  // Función helper para cambiar headlines
   const updateHeadline = (adIdx, hIdx, val) => {
     const newAds = [...group.ads];
     newAds[adIdx].headlines[hIdx] = val;

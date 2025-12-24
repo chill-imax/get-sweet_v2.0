@@ -3,60 +3,72 @@ import { EditableField } from "@/components/ui/inputs/EditableField";
 import { EditableList } from "@/components/ui/inputs/EditableList";
 
 export default function GoalsSection({ isOpen, onToggle, formData, onChange }) {
+  // 1. Aseguramos que sea un array sólido
   const goalsArr = Array.isArray(formData.supportingGoals)
     ? formData.supportingGoals
     : [];
 
+  // Preview inteligente
   const preview =
-    goalsArr.length > 0
-      ? `${formData.primaryGoal || ""} • ${goalsArr.slice(0, 2).join(", ")}`
-      : formData.primaryGoal || "Add goals";
+    formData.primaryGoal ||
+    (goalsArr.length > 0
+      ? `${goalsArr.length} goals defined`
+      : "Define business goals");
 
   return (
     <SidebarSection
-      title="Goals"
+      title="Goals & Metrics"
       isOpen={isOpen}
       onToggle={onToggle}
       preview={preview}
       onEdit={() => {}}
     >
+      {/* 1. OBJETIVO PRINCIPAL */}
       <EditableField
-        label="Primary goal"
-        value={formData.primaryGoal}
+        label="Primary Goal"
+        value={formData.primaryGoal || ""}
         isEditing={true}
         forceLabel
         onChange={(val) => onChange("primaryGoal", val)}
-        placeholder="Main objective"
+        placeholder="e.g. Generate emergency service calls..."
       />
 
-      <div className="pt-3 border-t border-gray-200">
+      {/* 2. OBJETIVOS SECUNDARIOS (SUPPORTING) */}
+      <div className="pt-4 border-t border-gray-100 mt-4">
+        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">
+          Supporting Goals
+        </label>
+
+        {/* 🔥 CORRECCIÓN CLAVE: Agregamos la prop 'key'.
+           Esto obliga al componente a actualizarse cuando la longitud del array cambia 
+           (ej. cuando pasa de vacío [] a tener datos de la BD).
+        */}
         <EditableList
-          items={formData.supportingGoals || []}
+          key={goalsArr.length}
+          items={goalsArr}
           isEditing={true}
-          onChange={(val) => onChange("supportingGoals", val)}
+          onChange={(newArray) => onChange("supportingGoals", newArray)}
+          placeholder="Add a supporting goal..."
         />
-        <p className="mt-2 text-[11px] text-gray-400">Add supporting goals.</p>
       </div>
 
-      <div className="pt-3 border-t border-gray-200">
+      {/* 3. MÉTRICAS Y TIEMPO */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-gray-100 mt-4">
         <EditableField
-          label="Success metric"
-          value={formData.successMetric}
+          label="Success Metric"
+          value={formData.successMetric || ""}
           isEditing={true}
           forceLabel
           onChange={(val) => onChange("successMetric", val)}
-          placeholder="e.g., +30% leads/month"
+          placeholder="e.g., +25% calls"
         />
-      </div>
-
-      <div className="pt-3 border-t border-gray-200">
         <EditableField
           label="Timeframe"
-          value={formData.timeframe}
+          value={formData.timeframe || ""}
           isEditing={true}
           forceLabel
           onChange={(val) => onChange("timeframe", val)}
-          placeholder="e.g., Q1 2026, This month"
+          placeholder="e.g., 6 months"
         />
       </div>
     </SidebarSection>

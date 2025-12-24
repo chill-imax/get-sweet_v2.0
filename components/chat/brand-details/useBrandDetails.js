@@ -5,14 +5,12 @@ import { useRouter } from "next/navigation";
 import { useCompany } from "@/context/CompanyContext";
 import { useAuth } from "@/context/useContext";
 
-const DRAFT_KEY = "sweet:brandDraft";
-
 export function useBrandDetails() {
   const router = useRouter();
   const { token } = useAuth();
   const { companyData, updateCompanyState, loading } = useCompany();
 
-  // ✅ CORRECCIÓN 1: Inicializar con los nombres correctos de la BD
+  // 1. Estado Inicial (Limpio y Seguro)
   const [formData, setFormData] = useState({
     brandName: "",
     aka: "",
@@ -22,11 +20,11 @@ export function useBrandDetails() {
     mission: "",
     vision: "",
 
-    // Section Goals
+    // Goals Section
     primaryGoal: "",
-    successMetric: "", // Agregado
-    timeframe: "", // Agregado
-    supportingGoals: [], // Renombrado de 'goals' a 'supportingGoals'
+    successMetric: "",
+    timeframe: "",
+    supportingGoals: [], // Array vacío por defecto
 
     // Lists
     services: [],
@@ -39,57 +37,50 @@ export function useBrandDetails() {
   const [isConfirming, setIsConfirming] = useState(false);
 
   // =========================================================
-  // 🔍 HYDRATION (Carga de Datos)
+  // 🔍 HYDRATION: CARGAR DATOS DE LA DB
   // =========================================================
   useEffect(() => {
     if (!companyData) return;
 
-    // 1. Normalización de datos (DB -> Form)
-    // A veces viene en data, a veces directo en el objeto
-    const validData =
-      companyData.data || companyData.companyData || companyData;
+    // A. Normalizar la fuente de datos
+    // A veces llega como { data: ... } o { companyData: ... } o plano.
+    const source = companyData.data || companyData.companyData || companyData;
 
-    const dbData = {
-      brandName: validData.name || validData.brandName || "",
-      aka: validData.aka || "",
-      industry: validData.industry || "",
-      targetAudience: validData.targetAudience || "",
-      website: validData.website || "",
-      mission: validData.mission || "",
-      vision: validData.vision || "",
+    // B. Extraer el array de supportingGoals con seguridad
+    // Verificamos si existe y si es un array. Si no, devolvemos [].
+    const safeSupportingGoals = Array.isArray(source.supportingGoals)
+      ? source.supportingGoals
+      : [];
 
-      // ✅ CORRECCIÓN 2: Mapear los campos de Goals correctamente
-      primaryGoal: validData.primaryGoal || "",
-      successMetric: validData.successMetric || "",
-      timeframe: validData.timeframe || "",
-      supportingGoals: Array.isArray(validData.supportingGoals)
-        ? validData.supportingGoals
+    // C. Actualizar el Formulario
+    setFormData({
+      brandName: source.name || source.brandName || source.businessName || "",
+      aka: source.aka || "",
+      industry: source.industry || "",
+      targetAudience: source.targetAudience || "",
+      website: source.website || "",
+      mission: source.mission || "",
+      vision: source.vision || "",
+
+      // Goals (Aquí es donde forzamos la lectura correcta)
+      primaryGoal: source.primaryGoal || "",
+      successMetric: source.successMetric || "",
+      timeframe: source.timeframe || "",
+      supportingGoals: safeSupportingGoals,
+
+      // Lists
+      services: Array.isArray(source.services) ? source.services : [],
+      differentiators: Array.isArray(source.differentiators)
+        ? source.differentiators
         : [],
+      values: Array.isArray(source.values) ? source.values : [], // A veces viene como 'values' o 'brandVoice'
+      colors: Array.isArray(source.colors) ? source.colors : [],
+    });
 
-      services: Array.isArray(validData.services) ? validData.services : [],
-      differentiators: Array.isArray(validData.differentiators)
-        ? validData.differentiators
-        : [],
-      values: Array.isArray(validData.values) ? validData.values : [], // A veces es brandVoice
-      colors: Array.isArray(validData.colors) ? validData.colors : [],
-    };
-
-    // 2. Prioridad: Si hay un borrador local con nombre, úsalo. Si no, usa la DB.
-    let finalData = dbData;
-    try {
-      const localDraftRaw = localStorage.getItem(DRAFT_KEY);
-      if (localDraftRaw) {
-        const localDraft = JSON.parse(localDraftRaw);
-        if (localDraft.brandName && localDraft.brandName.trim() !== "") {
-          // Fusionamos el draft local con la estructura base para asegurar que existan los campos nuevos
-          finalData = { ...dbData, ...localDraft };
-        }
-      }
-    } catch (e) {
-      console.error(e);
+    // D. Limpieza: Borrar cualquier borrador viejo del navegador para evitar conflictos
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("sweet:brandDraft");
     }
-
-    setFormData(finalData);
   }, [companyData]);
 
   // =========================================================
@@ -97,41 +88,33 @@ export function useBrandDetails() {
   // =========================================================
 
   const handleChange = (field, value) => {
-    setFormData((prev) => {
-      const next = { ...prev, [field]: value };
-      // Autosave local por seguridad
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(next));
-      return next;
-    });
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // ❌ CANCELAR
-  function handleCancel() {
+  const handleCancel = () => {
     router.push("/chat");
-  }
+  };
 
-  // ✅ GUARDAR Y CONTINUAR
-  async function handleSaveChanges() {
+  const handleSaveChanges = async () => {
     setIsConfirming(true);
     setToast(null);
 
     try {
-      // 1. Preparar Payload (Aseguramos nombres correctos para el Backend)
+      // 1. Preparar Payload (Lo que enviamos al backend)
       const payload = {
         ...formData,
-        name: formData.brandName, // Backend espera 'name' a veces
-        supportingGoals: formData.supportingGoals, // Asegurar array correcto
-        timeframe: formData.timeframe,
-        successMetric: formData.successMetric,
+        name: formData.brandName,
+        businessName: formData.brandName,
+
+        // 🚨 IMPORTANTE: Asegurar que supportingGoals se envíe como Array
+        supportingGoals: Array.isArray(formData.supportingGoals)
+          ? formData.supportingGoals
+          : [],
+
         status: "Draft",
       };
 
-      // 2. Fetch PUT a la DB
-      // Usamos la variable de entorno para consistencia
-      const apiUrl =
-        process.env.NEXT_PUBLIC_API_URL ||
-        "https://backend-get-sweet-v2-0.onrender.com";
-
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
       const res = await fetch(`${apiUrl}/api/v1/company/profile`, {
         method: "PUT",
         headers: {
@@ -146,16 +129,17 @@ export function useBrandDetails() {
       const json = await res.json();
       const updatedData = json.data || json.companyData || payload;
 
-      // 3. Actualizar Contexto
+      // 2. Actualizar el Contexto Global de la App
       updateCompanyState(updatedData);
 
-      // 4. Limpiar basura local
-      localStorage.removeItem(DRAFT_KEY);
-      localStorage.setItem("sweet:brandLocked", "true");
+      // 3. Bloquear edición y redireccionar
+      if (typeof window !== "undefined") {
+        localStorage.setItem("sweet:brandLocked", "true");
+      }
 
       setToast({
         type: "success",
-        message: "Saved! Redirecting to Brand AI...",
+        message: "Brand updated successfully!",
       });
 
       setTimeout(() => {
@@ -168,7 +152,7 @@ export function useBrandDetails() {
     } finally {
       setIsConfirming(false);
     }
-  }
+  };
 
   return {
     formData,

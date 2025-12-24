@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/context/useContext";
 import { useCompany } from "@/context/CompanyContext";
-import { useToast } from "@/context/ToastContext"; // ✅ 1. Importamos Toast
+import { useToast } from "@/context/ToastContext";
 import { uid, buildDraftFromSources } from "./utils";
 
 export function useBrandSources({
@@ -15,7 +15,7 @@ export function useBrandSources({
 }) {
   const { token } = useAuth();
   const { companyData, updateCompanyState, loading } = useCompany();
-  const toast = useToast(); // ✅ 2. Inicializamos Toast
+  const toast = useToast();
 
   const [sources, setSources] = useState({
     website: {
@@ -26,7 +26,12 @@ export function useBrandSources({
       data: null,
     },
     decks: [],
-    ai: { status: "none", lastUpdatedAt: null },
+    // 🧠 UPDATE 1: Agregamos hasChatHistory al estado inicial
+    ai: {
+      status: "none",
+      lastUpdatedAt: null,
+      hasChatHistory: false,
+    },
   });
 
   const [websiteUrl, setWebsiteUrl] = useState("");
@@ -46,14 +51,16 @@ export function useBrandSources({
     sources.decks.some((d) => d.status === "importing");
 
   // =========================================================
-  // 1. HYDRATION
+  // 1. HYDRATION & FETCHING
   // =========================================================
   useEffect(() => {
     if (loading || !companyData || !token) return;
 
+    // A. Hydrate Website
     const currentUrl = companyData.website || "";
     setWebsiteUrl((prev) => (prev ? prev : currentUrl));
 
+    // B. Hydrate Basic State (mantenemos lo previo mientras cargamos lo async)
     setSources((prev) => ({
       ...prev,
       website: {
@@ -62,23 +69,15 @@ export function useBrandSources({
         url: currentUrl,
         lastUpdatedAt: companyData.updatedAt || new Date().toISOString(),
       },
-      ai: {
-        ...prev.ai,
-        // Si hay misión o visión, asumimos que hubo interacción o datos
-        status: companyData.mission || companyData.vision ? "ready" : "none",
-        lastUpdatedAt: companyData.updatedAt,
-      },
     }));
 
+    // C. Fetch PDF History
     const fetchPdfHistory = async () => {
       try {
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/v1/brand/sources`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+          { headers: { Authorization: `Bearer ${token}` } }
         );
-
         if (res.ok) {
           const json = await res.json();
           const sourcesList = json.data || json;
@@ -105,21 +104,59 @@ export function useBrandSources({
       }
     };
 
+    // D. Fetch Chat Status
+    const fetchChatStatus = async () => {
+      try {
+        // 👇 CAMBIO AQUÍ: Apuntar a /status en lugar de /history
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/chat/status`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (res.ok) {
+          const data = await res.json();
+          // Ahora data.count SÍ existirá
+          const hasHistory = data.count > 0;
+
+          setSources((prev) => ({
+            ...prev,
+            ai: {
+              status: hasHistory ? "ready" : "none",
+              lastUpdatedAt: data.lastMessageAt,
+              hasChatHistory: hasHistory,
+            },
+          }));
+        }
+      } catch (err) {
+        console.error("Error fetching chat status:", err);
+      }
+    };
+
     fetchPdfHistory();
+    fetchChatStatus();
   }, [companyData, loading, token]);
 
   // =========================================================
-  // 2. SIGNAL HANDLER
+  // 2. SIGNAL HANDLER (Cuando termina la entrevista IA)
   // =========================================================
   useEffect(() => {
     if (!aiCompletedSignal) return;
-    setSources((prev) => ({
-      ...prev,
-      ai: { status: "ready", lastUpdatedAt: new Date().toISOString() },
-    }));
-    onDraftReady?.(
-      buildDraftFromSources({ ...sources, ai: { status: "ready" } })
-    );
+
+    // 🧠 UPDATE 3: Si la IA terminó, marcamos que hay historial
+    setSources((prev) => {
+      const nextState = {
+        ...prev,
+        ai: {
+          status: "ready",
+          lastUpdatedAt: new Date().toISOString(),
+          hasChatHistory: true, // ✅ Ahora sí hay historial
+        },
+      };
+      // Notificar al padre
+      onDraftReady?.(buildDraftFromSources(nextState));
+      return nextState;
+    });
+
     onAICompletedHandled?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiCompletedSignal]);
@@ -137,13 +174,9 @@ export function useBrandSources({
   function resetAllSources() {
     clearWebsiteSource();
     clearAllDecks();
-    // Nota: resetAllSources es visual.
-    // Si quieres que el botón "Reset All" general también borre el chat,
-    // el handleDeepReset del componente padre se encarga de llamar a la API global.
-    // Aquí solo limpiamos el estado visual local.
     setSources((prev) => ({
       ...prev,
-      ai: { status: "none", lastUpdatedAt: null },
+      ai: { status: "none", lastUpdatedAt: null, hasChatHistory: false },
     }));
     setError("");
   }
@@ -386,11 +419,10 @@ export function useBrandSources({
   }
 
   // =========================================================
-  // 6. AI LOGIC (✅ AHORA CONECTADO AL BACKEND)
+  // 6. AI LOGIC (CHAT)
   // =========================================================
   async function clearAISource() {
     try {
-      // 1. Llamada a la API para borrar historial
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/v1/chat/history`,
         {
@@ -405,10 +437,14 @@ export function useBrandSources({
         throw new Error("Failed to clear history on server");
       }
 
-      // 2. Limpiar estado visual (vuelve a 'none' para mostrar "Start Interview")
+      // 🧠 UPDATE 4: Resetear hasChatHistory a false
       setSources((prev) => ({
         ...prev,
-        ai: { status: "none", lastUpdatedAt: null },
+        ai: {
+          status: "none",
+          lastUpdatedAt: null,
+          hasChatHistory: false,
+        },
       }));
 
       toast?.success("Conversation history cleared!");
