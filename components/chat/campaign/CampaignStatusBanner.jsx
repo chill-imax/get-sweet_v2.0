@@ -2,96 +2,36 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Trash2,
-  Lock,
-  Unlock,
-  RefreshCw,
-  AlertTriangle,
-  CheckCircle2,
-  Loader2,
-  PlayCircle,
-  PauseCircle,
-} from "lucide-react";
+import { Trash2, Lock, Unlock, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/useContext";
+// 👇 IMPORTANTE: Usamos el Contexto para datos instantáneos
+import { useCampaign } from "@/context/CampaignContext";
 import CampaignStatusToggle from "./CampaignStatusToggle";
-
-function Pill({ status }) {
-  const map = {
-    draft: {
-      label: "Draft",
-      cls: "bg-gray-50 text-gray-700 border-gray-200",
-      Icon: AlertTriangle,
-    },
-    generating: {
-      label: "Generating…",
-      cls: "bg-blue-50 text-blue-700 border-blue-200",
-      Icon: RefreshCw,
-    },
-    approved: {
-      label: "Approved",
-      cls: "bg-green-50 text-green-700 border-green-200",
-      Icon: CheckCircle2,
-    },
-    locked: {
-      label: "Locked",
-      cls: "bg-amber-50 text-amber-800 border-amber-200",
-      Icon: Lock,
-    },
-    planning: {
-      label: "Planning",
-      cls: "bg-purple-50 text-purple-700 border-purple-200",
-      Icon: AlertTriangle,
-    },
-    active: {
-      label: "Active & Live",
-      cls: "bg-emerald-50 text-emerald-700 border-emerald-200 animate-pulse",
-      Icon: PlayCircle,
-    },
-    published: {
-      label: "Active & Live",
-      cls: "bg-emerald-50 text-emerald-700 border-emerald-200",
-      Icon: PlayCircle,
-    },
-    paused: {
-      label: "Paused",
-      cls: "bg-gray-100 text-gray-600 border-gray-200",
-      Icon: PauseCircle,
-    },
-  };
-
-  const cfg = map[status] || map.draft;
-  const Icon = cfg.Icon;
-
-  return (
-    <span
-      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold ${cfg.cls}`}
-    >
-      <Icon className="w-4 h-4" />
-      {cfg.label}
-    </span>
-  );
-}
 
 export default function CampaignStatusBanner({
   provider = "Google Ads",
-  campaign,
-  onStatusChange,
-  status: statusProp,
-  onUnlock,
-  campaignId,
+  onUnlock, // Acción local (UI)
+  onRegenerate, // Acción local (UI)
   deleteLabel = "Delete campaign",
 }) {
   const router = useRouter();
   const { token } = useAuth();
 
+  // 👇 Consumimos la campaña directamente del Contexto
+  const { campaign } = useCampaign();
+
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const safeId = campaign?._id || campaignId;
 
-  // Prioridad al estado en vivo
-  const currentStatus = statusProp || campaign?.status || "draft";
+  // Si no hay campaña cargada aún, no mostramos el banner
+  if (!campaign) return null;
+
+  const safeId = campaign._id;
+
+  // Lógica para mostrar botón de desbloqueo (basada en flujo interno)
+  const isLocked =
+    campaign.status === "approved" || campaign.status === "locked";
 
   const handleDelete = async () => {
     if (!safeId) {
@@ -130,12 +70,13 @@ export default function CampaignStatusBanner({
       <div className="border-b border-gray-100 bg-white">
         <div className="px-4 lg:px-6 py-3">
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
+            {/* LADO IZQUIERDO: Título */}
+            <div className="min-w-0 flex flex-col justify-center">
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="text-sm font-semibold text-gray-900 truncate">
                   {provider} campaign
                 </div>
-                <Pill status={currentStatus} />
+                {/* 🗑️ Pill Eliminado */}
               </div>
               {err && (
                 <div className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
@@ -144,19 +85,18 @@ export default function CampaignStatusBanner({
               )}
             </div>
 
+            {/* LADO DERECHO: Acciones */}
             <div className="shrink-0 flex items-center gap-2">
-              {/* 👇 PASAMOS LA PROP EXTERNALSTATUS AQUÍ */}
-              {campaign && campaign.googleAdsResourceId && (
+              {/* 👇 TOGGLE (Solo si está publicada en Google) */}
+              {/* No pasamos props, el Toggle es inteligente y usa el Contexto */}
+              {campaign.googleAdsResourceId && (
                 <div className="mr-2 border-r border-gray-200 pr-4">
-                  <CampaignStatusToggle
-                    campaign={campaign}
-                    onStatusChange={onStatusChange}
-                    externalStatus={currentStatus}
-                  />
+                  <CampaignStatusToggle />
                 </div>
               )}
 
-              {(currentStatus === "approved" || currentStatus === "locked") && (
+              {/* Botón Unlock (Solo si está bloqueada/aprobada localmente) */}
+              {isLocked && (
                 <button
                   type="button"
                   onClick={onUnlock}
@@ -166,6 +106,7 @@ export default function CampaignStatusBanner({
                 </button>
               )}
 
+              {/* Botón Eliminar */}
               <button
                 type="button"
                 onClick={() => setConfirmOpen(true)}
@@ -178,33 +119,51 @@ export default function CampaignStatusBanner({
         </div>
       </div>
 
+      {/* Modal de Confirmación */}
       {confirmOpen && (
         <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => !busy && setConfirmOpen(false)}
           />
-          <div className="relative w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-xl p-5">
-            <h3 className="text-sm font-bold text-gray-900 mb-1">
-              Delete campaign?
-            </h3>
-            <p className="text-sm text-gray-600 mb-5">
-              This action cannot be undone.
-            </p>
-            <div className="flex gap-2 justify-end">
+          <div className="relative w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-xl p-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-red-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-bold text-gray-900">
+                  Delete campaign?
+                </div>
+                <div className="mt-1 text-sm text-gray-600">
+                  This will permanently delete the campaign and its drafts.
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 flex gap-2 justify-end">
               <button
+                type="button"
                 disabled={busy}
                 onClick={() => setConfirmOpen(false)}
-                className="px-4 py-2 text-sm font-semibold text-gray-700"
+                className="h-9 px-4 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-60"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 disabled={busy}
                 onClick={handleDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-bold flex items-center gap-2"
+                className="h-9 px-4 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 disabled:opacity-60 inline-flex items-center gap-2"
               >
-                {busy && <Loader2 className="w-3 h-3 animate-spin" />} Delete
+                {busy ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Deleting…
+                  </>
+                ) : (
+                  "Delete"
+                )}
               </button>
             </div>
           </div>

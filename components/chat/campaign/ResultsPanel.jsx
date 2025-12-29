@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useAuth } from "@/context/useContext";
 import { useParams } from "next/navigation";
 import {
   BarChart3,
@@ -18,58 +16,21 @@ import {
   Ban,
   Info,
 } from "lucide-react";
+// 👇 IMPORTANTE: Consumimos el contexto
+import { useCampaign } from "@/context/CampaignContext";
 import AdGroupToggle from "./AdGroupToggle";
 
-export default function ResultsPanel({ onSyncStatus }) {
+export default function ResultsPanel() {
   const { id } = useParams();
-  const { token } = useAuth();
 
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState(null);
-  const [notPublished, setNotPublished] = useState(false);
-  const [error, setError] = useState(null);
+  // 👇 Consumimos datos y acciones del Contexto (Cero fetch local)
+  const { analyticsData, isSyncing, refreshData } = useCampaign();
 
-  const fetchAnalytics = useCallback(async () => {
-    if (!token || !id) return;
-
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/campaigns/${id}/analytics`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const json = await res.json();
-
-      if (!res.ok) throw new Error(json.message || "Error loading analytics");
-
-      if (json.notPublished) {
-        setNotPublished(true);
-      } else if (json.success && json.data) {
-        setData(json.data);
-
-        // 👇 CORRECCIÓN AQUÍ: Usamos el estado REAL de la campaña
-        // Mapeamos el vocabulario de Google al de tu App
-        const googleStatus = json.data.overview.status; // "ENABLED" o "PAUSED"
-        const appStatus = googleStatus === "ENABLED" ? "active" : "paused";
-
-        if (onSyncStatus) {
-          onSyncStatus(appStatus);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [id, token, onSyncStatus]);
-
-  useEffect(() => {
-    fetchAnalytics();
-  }, [fetchAnalytics]);
-
-  if (loading && !data)
+  // 1. ESTADO DE CARGA (Solo si no hay datos previos)
+  // Si ya hay datos (analyticsData), no mostramos loading aunque isSyncing sea true (refresco silencioso)
+  if (isSyncing && !analyticsData) {
     return (
-      <div className="flex h-full items-center justify-center text-indigo-600 bg-gray-50/50 min-h-100">
+      <div className="flex h-full items-center justify-center text-indigo-600 bg-gray-50/50 min-h-[500px]">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 animate-spin" />
           <span className="text-sm font-medium text-gray-600">
@@ -78,28 +39,31 @@ export default function ResultsPanel({ onSyncStatus }) {
         </div>
       </div>
     );
-  if (error)
+  }
+
+  // 2. ESTADO VACÍO / NO PUBLICADO
+  // Si terminó de cargar y no hay analyticsData, es que no está publicada o falló
+  if (!analyticsData) {
     return (
-      <div className="p-8 text-center text-red-500 bg-red-50 rounded-2xl m-6 border border-red-100">
-        <AlertCircle className="w-10 h-10 mx-auto mb-2" />
-        <p>Could not load analytics: {error}</p>
-      </div>
-    );
-  if (notPublished || !data)
-    return (
-      <div className="flex flex-col h-full items-center justify-center text-gray-400 p-10 text-center border-2 border-dashed border-gray-200 rounded-3xl m-6 min-h-100">
-        <BarChart3 className="w-8 h-8 text-gray-400" />
+      <div className="flex flex-col h-full items-center justify-center text-gray-400 p-10 text-center border-2 border-dashed border-gray-200 rounded-3xl m-6 min-h-[500px]">
+        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+          <BarChart3 className="w-8 h-8 text-gray-400" />
+        </div>
         <h3 className="text-lg font-bold text-gray-700">No Analytics Yet</h3>
         <p className="max-w-xs mx-auto mt-2 text-sm text-gray-500">
-          This campaign hasn&apos;t been launched yet.
+          This campaign hasn&apos;t been launched yet. Publish it to see
+          real-time performance data here.
         </p>
       </div>
     );
+  }
 
-  const { overview, ads } = data;
+  // 3. RENDERIZADO DE DATOS
+  const { overview, ads } = analyticsData;
 
   return (
     <div className="p-6 space-y-8 pb-24 animate-in fade-in">
+      {/* HEADER & STATUS */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">
@@ -116,6 +80,7 @@ export default function ResultsPanel({ onSyncStatus }) {
         <CampaignStatusBadge status={overview.status} />
       </div>
 
+      {/* KPI CARDS GRID */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard
           title="Impressions"
@@ -147,6 +112,7 @@ export default function ResultsPanel({ onSyncStatus }) {
         />
       </div>
 
+      {/* TABLA DE SALUD Y ESTADO DE ANUNCIOS */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
@@ -155,6 +121,7 @@ export default function ResultsPanel({ onSyncStatus }) {
           </h3>
           <span className="text-xs text-gray-400">Updates every 24h</span>
         </div>
+
         <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
@@ -176,15 +143,18 @@ export default function ResultsPanel({ onSyncStatus }) {
                     <td className="p-4 font-bold text-gray-800">
                       {ad.groupName}
                     </td>
+
                     <td className="p-4 text-center">
                       <div className="flex justify-center">
+                        {/* 👇 Usamos refreshData del contexto para recargar todo al cambiar un toggle */}
                         <AdGroupToggle
                           campaignId={id}
                           adGroup={ad}
-                          onRefresh={fetchAnalytics}
+                          onRefresh={refreshData}
                         />
                       </div>
                     </td>
+
                     <td className="p-4">
                       <AdStatusCell
                         userStatus={ad.status}
@@ -193,9 +163,11 @@ export default function ResultsPanel({ onSyncStatus }) {
                         issues={ad.policyIssues}
                       />
                     </td>
+
                     <td className="p-4">
                       <StrengthIndicator strength={ad.strength} />
                     </td>
+
                     <td className="p-4 text-right">
                       <div className="font-bold text-gray-900">
                         {ad.clicks}{" "}
@@ -215,7 +187,7 @@ export default function ResultsPanel({ onSyncStatus }) {
                       colSpan={5}
                       className="p-8 text-center text-gray-400 italic"
                     >
-                      No active ads found.
+                      No active ads found for this period.
                     </td>
                   </tr>
                 )}
@@ -228,8 +200,8 @@ export default function ResultsPanel({ onSyncStatus }) {
   );
 }
 
-// ... SUB-COMPONENTES (KpiCard, CampaignStatusBadge, etc.) SE MANTIENEN IGUAL ...
-// (Asegúrate de mantener los componentes UI auxiliares que tenías al final del archivo)
+// --- SUB-COMPONENTES UI (Sin Cambios) ---
+
 function KpiCard({ title, value, icon: Icon, color, tooltip }) {
   const styles = {
     blue: "bg-blue-50 text-blue-600 border-blue-100 group-hover:bg-blue-100",
@@ -240,6 +212,7 @@ function KpiCard({ title, value, icon: Icon, color, tooltip }) {
     amber:
       "bg-amber-50 text-amber-600 border-amber-100 group-hover:bg-amber-100",
   };
+
   return (
     <div
       className={`group relative border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all bg-white cursor-default ${
@@ -273,11 +246,14 @@ function KpiCard({ title, value, icon: Icon, color, tooltip }) {
     </div>
   );
 }
+
 function CampaignStatusBadge({ status }) {
   const isActive = status === "ENABLED";
   const isPaused = status === "PAUSED";
+
   let color = "bg-gray-100 text-gray-600 border-gray-200";
   let iconColor = "bg-gray-400";
+
   if (isActive) {
     color = "bg-emerald-50 text-emerald-700 border-emerald-200";
     iconColor = "bg-emerald-500 animate-pulse";
@@ -286,6 +262,7 @@ function CampaignStatusBadge({ status }) {
     color = "bg-amber-50 text-amber-700 border-amber-200";
     iconColor = "bg-amber-500";
   }
+
   return (
     <div
       className={`px-4 py-1.5 rounded-full border text-xs font-bold flex items-center gap-2 uppercase tracking-wide ${color}`}
@@ -295,22 +272,25 @@ function CampaignStatusBadge({ status }) {
     </div>
   );
 }
+
 function AdStatusCell({ userStatus, reviewStatus, approvalStatus, issues }) {
-  if (userStatus === "PAUSED")
+  if (userStatus === "PAUSED") {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">
         <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
         Paused by User
       </span>
     );
-  if (reviewStatus === "REVIEW_IN_PROGRESS")
+  }
+  if (reviewStatus === "REVIEW_IN_PROGRESS") {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
         <Clock className="w-3 h-3" />
         In Review
       </span>
     );
-  if (approvalStatus === "DISAPPROVED")
+  }
+  if (approvalStatus === "DISAPPROVED") {
     return (
       <div className="flex flex-col items-start gap-1">
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-100">
@@ -318,13 +298,14 @@ function AdStatusCell({ userStatus, reviewStatus, approvalStatus, issues }) {
           Not Displaying
         </span>
         {issues?.length > 0 && (
-          <span className="text-[10px] text-red-500 max-w-[180px] leading-tight ml-1 font-medium">
+          <span className="text-[10px] text-red-500 max-w-45 leading-tight ml-1 font-medium">
             Reason: {issues.map((i) => i.topic).join(", ")}
           </span>
         )}
       </div>
     );
-  if (approvalStatus === "APPROVED_LIMITED")
+  }
+  if (approvalStatus === "APPROVED_LIMITED") {
     return (
       <div className="flex flex-col items-start gap-1">
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-100">
@@ -332,12 +313,13 @@ function AdStatusCell({ userStatus, reviewStatus, approvalStatus, issues }) {
           Limited
         </span>
         {issues?.length > 0 && (
-          <span className="text-[10px] text-amber-600 max-w-[180px] leading-tight ml-1">
+          <span className="text-[10px] text-amber-600 max-w-45 leading-tight ml-1">
             Policy: {issues.map((i) => i.topic).join(", ")}
           </span>
         )}
       </div>
     );
+  }
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
       <CheckCircle2 className="w-3 h-3" />
@@ -345,11 +327,13 @@ function AdStatusCell({ userStatus, reviewStatus, approvalStatus, issues }) {
     </span>
   );
 }
+
 function StrengthIndicator({ strength }) {
   const s = strength || "PENDING";
   let bars = 0;
   let colorClass = "text-gray-300";
   let label = "Learning";
+
   if (s === "POOR") {
     bars = 1;
     colorClass = "text-red-500";
@@ -370,6 +354,7 @@ function StrengthIndicator({ strength }) {
     colorClass = "text-emerald-500";
     label = "Excellent";
   }
+
   return (
     <div className="flex items-center gap-2" title={`Ad Strength: ${s}`}>
       <div className="flex items-end gap-1 h-4">
