@@ -6,10 +6,13 @@ import {
   CheckCircle2,
   AlertTriangle,
   ChevronRight,
+  LogOut, // Importamos icono para desconectar
+  RefreshCw, // Icono para cambiar cuenta
 } from "lucide-react";
 import { useAuth } from "@/context/useContext";
+import DisconnectModal from "../modals/DisconnectGoogleAds";
 
-// Icono de Google
+// Icono de Google (Sin cambios)
 const GoogleIcon = () => (
   <svg
     className="w-4 h-4"
@@ -35,7 +38,6 @@ const GoogleIcon = () => (
   </svg>
 );
 
-// Recibimos el objeto completo 'googleAdsData' en lugar de solo isConnected
 export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
   const { token } = useAuth();
 
@@ -46,16 +48,16 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
   const [loading, setLoading] = useState(false);
   const [showAccountList, setShowAccountList] = useState(false);
   const [accounts, setAccounts] = useState([]);
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+  const [activeCampaigns, setActiveCampaigns] = useState([]);
 
-  // 1. Iniciar Auth
+  // 1. Iniciar Auth (Conectar)
   const handleConnect = async () => {
     setLoading(true);
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/v1/googleads/connect/start`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
       if (data.url) window.location.href = data.url;
@@ -72,9 +74,7 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/v1/googleads/accounts`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       if (!res.ok) throw new Error("Failed to load accounts");
 
@@ -109,9 +109,6 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
       );
 
       if (!res.ok) throw new Error("Failed to link account");
-
-      // Recargamos la página para que el componente padre (Page) refresque los datos
-      // O idealmente llamaríamos a una prop refreshData()
       window.location.reload();
     } catch (error) {
       console.error(error);
@@ -121,35 +118,145 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
     }
   };
 
+  // 4. Lógica Inteligente de Desconexión
+  const initiateDisconnect = async () => {
+    setLoading(true);
+    try {
+      // A. Consultar campañas activas del usuario
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/campaigns`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      const campaigns = await res.json();
+
+      // Filtrar las que están activas o publicadas
+      const runningCampaigns = campaigns.filter(
+        (c) =>
+          (c.status === "active" || c.status === "published") &&
+          c.googleAdsResourceId
+      );
+
+      if (runningCampaigns.length > 0) {
+        // B. Si hay activas, mostramos el modal
+        setActiveCampaigns(runningCampaigns);
+        setShowDisconnectModal(true);
+        setLoading(false); // Paramos carga, esperamos confirmación
+      } else {
+        // C. Si no hay, desconectamos directo
+        if (confirm("Are you sure you want to disconnect?")) {
+          await executeDisconnect();
+        } else {
+          setLoading(false);
+        }
+      }
+    } catch (error) {
+      console.error("Error checking campaigns", error);
+      // Si falla la verificación, preguntamos normal
+      if (
+        confirm("Disconnect Google Ads? (Unable to check active campaigns)")
+      ) {
+        await executeDisconnect();
+      } else {
+        setLoading(false);
+      }
+    }
+  };
+
+  const executeDisconnect = async () => {
+    setLoading(true);
+    try {
+      // Llamamos al endpoint (el backend se encargará de pausar si le indicamos)
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/googleads/disconnect`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          // Enviamos flag para pausar campañas si venimos del modal
+          body: JSON.stringify({ pauseCampaigns: true }),
+        }
+      );
+
+      if (res.status === 401) {
+        alert("Session expired. Please login again.");
+        return;
+      }
+      if (!res.ok) throw new Error("Failed to disconnect");
+
+      if (onDisconnect) onDisconnect();
+      window.location.reload();
+    } catch (error) {
+      console.error(error);
+      alert("Error disconnecting");
+    } finally {
+      setLoading(false);
+      setShowDisconnectModal(false);
+    }
+  };
+
   // --- RENDER: CASO 3: CONECTADO Y CUENTA SELECCIONADA (VERDE) ---
   if (isConnected && selectedCustomerId) {
     return (
-      <div className="flex items-center justify-between p-4 border border-green-200 bg-green-50 rounded-xl">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-green-100 shadow-sm">
-            <GoogleIcon />
+      <>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-green-200 bg-green-50 rounded-xl gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-green-100 shadow-sm shrink-0">
+              <GoogleIcon />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-green-800 flex items-center gap-1">
+                Active: {selectedCustomerName || selectedCustomerId}{" "}
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+              <div className="text-xs text-green-600">
+                ID: {selectedCustomerId}
+              </div>
+            </div>
           </div>
-          <div>
-            <div className="text-sm font-bold text-green-800 flex items-center gap-1">
-              Active: {selectedCustomerName || selectedCustomerId}{" "}
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-            <div className="text-xs text-green-600">
-              ID: {selectedCustomerId}
-            </div>
+
+          {/* Acciones: Cambiar o Desconectar */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setShowAccountList(false);
+                fetchAccounts();
+              }}
+              disabled={loading}
+              className="text-xs font-semibold text-green-700 hover:text-green-900 bg-green-100 hover:bg-green-200 px-3 py-2 rounded-lg transition-colors flex items-center gap-1"
+            >
+              <RefreshCw className="w-3 h-3" /> Change
+            </button>
+
+            <button
+              onClick={initiateDisconnect}
+              disabled={loading}
+              className="text-xs font-semibold text-red-600 hover:text-red-800 bg-white border border-red-100 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors flex items-center gap-1"
+            >
+              {loading && !showDisconnectModal ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <LogOut className="w-3 h-3" />
+              )}
+              Disconnect
+            </button>
           </div>
         </div>
-        {/* Opción para cambiar cuenta (resetea el estado local para volver a buscar) */}
-        <button
-          onClick={() => {
-            setShowAccountList(false);
-            fetchAccounts();
-          }}
-          className="text-xs font-semibold text-green-700 hover:text-green-900 bg-green-100 px-3 py-1.5 rounded-lg transition-colors"
-        >
-          Change
-        </button>
-      </div>
+        {showDisconnectModal && (
+          <DisconnectModal
+            activeCampaigns={activeCampaigns}
+            isDisconnecting={loading}
+            onConfirm={executeDisconnect}
+            onCancel={() => {
+              setShowDisconnectModal(false);
+              setLoading(false);
+            }}
+          />
+        )}
+      </>
     );
   }
 
@@ -170,6 +277,15 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
               one to continue.
             </p>
           </div>
+
+          {/* Botón de desconectar también aquí por si se arrepienten */}
+          <button
+            onClick={initiateDisconnect}
+            className="text-amber-700 hover:text-red-600 p-1"
+            title="Cancel & Disconnect"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
 
         {!showAccountList ? (
