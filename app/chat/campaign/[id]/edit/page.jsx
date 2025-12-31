@@ -17,8 +17,9 @@ import ChatHeader from "@/components/chat/ui/HeaderChat";
 import ConnectGoogleAdsBtn from "@/components/chat/campaign/ConnectGoogleAdsBtn";
 import LocationPicker from "@/components/ui/inputs/LocationPicker";
 import LanguagePicker from "@/components/ui/inputs/LanguagePicker";
-import { useAuth } from "@/context/useContext"; // Se mantiene solo para verificar estado de carga del token
-import api from "@/app/api/auth/axios"; // ✅ Instancia centralizada
+import { useAuth } from "@/context/useContext";
+import { useCompany } from "@/context/CompanyContext"; // ✅ Contexto Empresa
+import api from "@/app/api/auth/axios";
 import {
   CAMPAIGN_OBJECTIVES,
   TIMEFRAMES,
@@ -71,7 +72,6 @@ const Select = ({ value, onChange, options, required, placeholder }) => (
         </option>
       ))}
     </select>
-    {/* Flechita SVG */}
     <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
       <svg
         className="w-4 h-4"
@@ -112,6 +112,7 @@ export default function CampaignEditPage() {
   const { id } = useParams();
   const router = useRouter();
   const { token } = useAuth();
+  const { companyData } = useCompany();
   const campaignId = String(id);
 
   const [isLeftOpen, setIsLeftOpen] = useState(false);
@@ -141,39 +142,45 @@ export default function CampaignEditPage() {
     language: "English",
   });
 
-  // SNAPSHOT PARA DIRTY CHECKING
   const [originalForm, setOriginalForm] = useState(null);
+
+  // ✅ Pre-llenar Landing URL si existe website en la empresa
+  useEffect(() => {
+    if (companyData?.website && !form.landingUrl) {
+      setForm((prev) => ({ ...prev, landingUrl: companyData.website }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyData?.website]);
 
   // ========================================================================
   // 1. CARGA DE DATOS
   // ========================================================================
   useEffect(() => {
-    // Esperamos a tener token para evitar llamadas 401 prematuras,
-    // aunque axios manejaría el error, es mejor prevenir en UI.
     if (!token || !campaignId) return;
 
     const loadAllData = async () => {
       try {
         setLoading(true);
 
-        // ✅ Axios: Promise.all con api.get
         const [campRes, compRes] = await Promise.all([
           api.get(`/api/v1/campaigns/${campaignId}`),
           api.get(`/api/v1/company/profile`),
         ]);
 
         const campData = campRes.data;
-
-        let companyData = { primaryGoal: "", successMetric: "", timeframe: "" };
-
-        // Manejo flexible de respuesta (por si viene envuelto en .data o directo)
         const rawComp = compRes.data;
         const compObj = Array.isArray(rawComp)
           ? rawComp[0]
           : rawComp.data || rawComp;
 
+        let companyDataLocal = {
+          primaryGoal: "",
+          successMetric: "",
+          timeframe: "",
+        };
+
         if (compObj) {
-          companyData = {
+          companyDataLocal = {
             primaryGoal: compObj.primaryGoal || "",
             successMetric: compObj.successMetric || "",
             timeframe: compObj.timeframe || "",
@@ -184,7 +191,8 @@ export default function CampaignEditPage() {
         const loadedForm = {
           name: campData.name || "",
           objective: campData.objective || "",
-          landingUrl: campData.landingPageUrl || "",
+          // Usamos el de la campaña si existe, sino intentamos usar el de la empresa
+          landingUrl: campData.landingPageUrl || compObj?.website || "",
           channels: Array.isArray(campData.channels)
             ? campData.channels
             : ["Google Search"],
@@ -195,13 +203,13 @@ export default function CampaignEditPage() {
           tone: campData.tone || "Professional",
           status: campData.status || "planning",
           language: campData.language || "English",
-          primaryGoal: companyData.primaryGoal,
-          successMetric: companyData.successMetric,
-          timeframe: companyData.timeframe,
+          primaryGoal: companyDataLocal.primaryGoal,
+          successMetric: companyDataLocal.successMetric,
+          timeframe: companyDataLocal.timeframe,
         };
 
         setForm(loadedForm);
-        setOriginalForm(JSON.parse(JSON.stringify(loadedForm))); // Snapshot inicial
+        setOriginalForm(JSON.parse(JSON.stringify(loadedForm)));
       } catch (err) {
         console.error("❌ Error loading data:", err);
         setToast({
@@ -217,7 +225,7 @@ export default function CampaignEditPage() {
   }, [campaignId, token]);
 
   // ========================================================================
-  // VALIDACIONES & DIRTY CHECKING
+  // VALIDACIONES
   // ========================================================================
 
   const isFormValid =
@@ -237,6 +245,9 @@ export default function CampaignEditPage() {
   const setField = (key, value) => setForm((p) => ({ ...p, [key]: value }));
 
   const toggleChannel = (channel) => {
+    // 🔒 CAMBIO 1: Bloquear canales que no sean Google Search
+    if (channel !== "Google Search") return;
+
     setForm((prev) => {
       const current = prev.channels || [];
       return current.includes(channel)
@@ -279,8 +290,6 @@ export default function CampaignEditPage() {
       ]);
 
       setToast({ type: "success", message: "Changes saved successfully!" });
-
-      // Actualizar Snapshot
       setOriginalForm(JSON.parse(JSON.stringify(form)));
 
       setTimeout(() => setToast(null), 2500);
@@ -339,7 +348,6 @@ export default function CampaignEditPage() {
                 <div className="text-xl font-semibold text-gray-900">
                   Campaign Settings
                 </div>
-                {/* Indicador de estado */}
                 <div className="text-sm flex items-center gap-2">
                   {!isFormValid ? (
                     <span className="text-amber-600 flex items-center gap-1 font-medium">
@@ -468,20 +476,36 @@ export default function CampaignEditPage() {
                     <Label>Channels</Label>
                     <div className="flex flex-wrap gap-2 mt-1">
                       {CHANNEL_OPTIONS.map((opt) => {
+                        const isGoogleSearch = opt === "Google Search";
                         const isSelected = form.channels.includes(opt);
+
                         return (
                           <button
                             key={opt}
                             type="button"
                             onClick={() => toggleChannel(opt)}
-                            className={`h-9 px-3 rounded-lg text-xs font-semibold border transition-all flex items-center gap-2 ${
-                              isSelected
-                                ? "bg-gray-900 text-white border-gray-900"
-                                : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
-                            }`}
+                            disabled={!isGoogleSearch} // 🔒 CAMBIO 2: Deshabilitar en UI
+                            className={`h-9 px-3 rounded-lg text-xs font-semibold border transition-all flex items-center gap-2 
+                              ${
+                                isSelected
+                                  ? "bg-gray-900 text-white border-gray-900"
+                                  : "bg-white text-gray-600 border-gray-200"
+                              }
+                              ${
+                                !isGoogleSearch
+                                  ? "opacity-50 cursor-not-allowed bg-gray-50"
+                                  : "hover:border-gray-300 hover:bg-gray-50"
+                              }
+                            `}
                           >
                             {isSelected && <Check className="w-3 h-3" />}
                             {opt}
+                            {/* 🔒 CAMBIO 3: Badge visual */}
+                            {!isGoogleSearch && (
+                              <span className="ml-1 text-[10px] bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded">
+                                Soon
+                              </span>
+                            )}
                           </button>
                         );
                       })}
