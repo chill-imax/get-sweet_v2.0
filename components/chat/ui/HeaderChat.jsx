@@ -2,8 +2,8 @@
 
 import { Menu, Info } from "lucide-react";
 
+// --- Subcomponente: Pildora de Estado ---
 function StatusPill({ status = "none" }) {
-  // status: "none" | "importing" | "draft_ready" | "locked" | "failed"
   const map = {
     none: { label: "Not set", cls: "bg-gray-50 text-gray-700 border-gray-200" },
     importing: {
@@ -36,6 +36,7 @@ function StatusPill({ status = "none" }) {
   );
 }
 
+// --- Componente Principal ---
 export default function ChatHeader({
   headerTitle,
   activeContext,
@@ -44,12 +45,13 @@ export default function ChatHeader({
 
   // Status Props
   brandStatus,
-  showOnline = true,
-  onlineLabel = "online",
+  onlineLabel = "Agent Online", // Texto por defecto mejorado
   rightBadgeLabel,
   rightActions,
 }) {
-  const isCampaign = activeContext !== "general";
+  // Lógica de Contexto
+  const isBrandSetup = activeContext === "brand_ai"; // 👈 Solo aquí mostramos "Online"
+  const isCampaign = activeContext !== "general" && !isBrandSetup;
 
   return (
     <header className="h-16 border-b border-gray-100 flex items-center justify-between px-4 lg:px-6 shrink-0 bg-white z-20 relative">
@@ -70,35 +72,40 @@ export default function ChatHeader({
             {headerTitle}
           </h2>
 
-          {/* Solo mostramos el estado online si NO estamos en modo edición  */}
-          {!rightActions && showOnline ? (
-            <p className="text-xs text-gray-500 flex items-center gap-1">
-              <span className="w-2 h-2 bg-green-500 rounded-full inline-block mt-1" />
-              <span>{onlineLabel}</span>
-            </p>
-          ) : null}
+          {/* ✅ CONDICIÓN ESTRICTA: Solo mostrar si es Brand Setup y no estamos editando */}
+          {isBrandSetup && !rightActions && (
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="text-[10px] font-medium text-emerald-600 uppercase tracking-wide">
+                {onlineLabel}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
       {/* RIGHT: Actions or Badges */}
       <div className="flex items-center gap-2">
         {rightActions ? (
-          /* CASO A: Estamos editando. Mostramos los botones inyectados (Save/Cancel) */
+          /* MODO EDICIÓN: Botones inyectados (Save, Cancel, etc) */
           <>{rightActions}</>
         ) : (
-          /* CASO B: Estamos navegando normal. Mostramos Badges y Pills */
+          /* MODO VISUALIZACIÓN: Badges informativos */
           <>
-            {/* Campaign badge */}
-            {isCampaign ? (
+            {/* Campaign Badge */}
+            {isCampaign && (
               <span className="hidden lg:inline-block px-3 py-1 bg-purple-50 text-purple-700 text-xs font-medium rounded-full border border-purple-100">
-                {rightBadgeLabel || "campaign mode"}
+                {rightBadgeLabel || "Campaign Mode"}
               </span>
-            ) : null}
+            )}
 
-            {/* Brand approval/status */}
-            {brandStatus ? <StatusPill status={brandStatus} /> : null}
+            {/* Brand Status Pill */}
+            {brandStatus && <StatusPill status={brandStatus} />}
 
-            {/* Mobile: open right sidebar (Info) */}
+            {/* Mobile: Info Button */}
             <button
               onClick={onOpenRight}
               className="lg:hidden p-2 text-purple-600 hover:bg-purple-50 rounded-lg bg-white border border-gray-200 shadow-sm"

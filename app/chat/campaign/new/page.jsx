@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react"; // ✅ Agregamos useEffect
 import { useRouter } from "next/navigation";
 import {
   Sparkles,
@@ -14,7 +14,8 @@ import {
 import LeftSidebar from "@/components/chat/LeftSideBar";
 import ChatHeader from "@/components/chat/ui/HeaderChat";
 import { useAuth } from "@/context/useContext";
-import api from "@/app/api/auth/axios"; // ✅ Importación de Axios centralizado
+import { useCompany } from "@/context/CompanyContext"; // ✅ 1. Importar Contexto de Empresa
+import api from "@/app/api/auth/axios";
 
 // Componentes Custom
 import LocationPicker from "@/components/ui/inputs/LocationPicker";
@@ -73,7 +74,6 @@ const Select = ({ value, onChange, options, required, placeholder }) => (
         </option>
       ))}
     </select>
-    {/* Flechita */}
     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
       <svg
         className="w-4 h-4"
@@ -94,7 +94,8 @@ const Select = ({ value, onChange, options, required, placeholder }) => (
 
 export default function NewCampaignPage() {
   const router = useRouter();
-  const { token } = useAuth(); // Solo para check rápido de UX, no para headers
+  const { token } = useAuth();
+  const { companyData } = useCompany(); // ✅ 2. Extraer datos de la empresa
 
   const [isLeftOpen, setIsLeftOpen] = useState(false);
   const headerTitle = useMemo(() => "New campaign", []);
@@ -106,14 +107,24 @@ export default function NewCampaignPage() {
   const [channels, setChannels] = useState(["Google Search"]);
   const [audience, setAudience] = useState("");
   const [primaryKpi, setPrimaryKpi] = useState("");
-  const [landingUrl, setLandingUrl] = useState("");
+
+  const [landingUrl, setLandingUrl] = useState(""); // Inicialmente vacío
+
   const [geo, setGeo] = useState("");
   const [budget, setBudget] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // VALIDACIÓN: Todos requeridos menos Audience
+  // ✅ 3. EFECTO: Pre-llenar Landing URL si existe website en la empresa
+  useEffect(() => {
+    if (companyData?.website) {
+      // Usamos el callback del setter para asegurarnos de no sobrescribir
+      // si el usuario ya escribió algo mientras cargaba los datos.
+      setLandingUrl((prev) => (prev ? prev : companyData.website));
+    }
+  }, [companyData]);
+
   const isFormValid =
     name.trim() &&
     tone &&
@@ -125,6 +136,7 @@ export default function NewCampaignPage() {
     channels.length > 0;
 
   function toggleChannel(id) {
+    if (id !== "Google Search") return;
     setChannels((prev) =>
       prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
     );
@@ -132,7 +144,7 @@ export default function NewCampaignPage() {
 
   async function handleCreate(e) {
     e.preventDefault();
-    if (!isFormValid) return; // Doble check
+    if (!isFormValid) return;
 
     setError("");
     if (!token) {
@@ -151,15 +163,13 @@ export default function NewCampaignPage() {
         primaryKpi,
         landingPageUrl: landingUrl.trim(),
         geo: geo.trim(),
-        budget: budget.toString(), // Asegurar string
+        budget: budget.toString(),
       };
 
-      // ✅ Axios: URL base ya configurada, headers automáticos
       const res = await api.post("/api/v1/campaigns", payload);
-
-      const responseJson = res.data; // Axios entrega el body en .data
-
+      const responseJson = res.data;
       const campaignId = responseJson.data?._id;
+
       if (!campaignId) {
         throw new Error("Campaign created, but no ID returned from server");
       }
@@ -167,7 +177,6 @@ export default function NewCampaignPage() {
       router.push(`/chat/campaign/${campaignId}`);
     } catch (err) {
       console.error(err);
-      // ✅ Manejo de errores de Axios
       const errorMsg =
         err.response?.data?.message ||
         err.message ||
@@ -215,7 +224,6 @@ export default function NewCampaignPage() {
               with AI later.
             </p>
 
-            {/* FORMULARIO */}
             <form onSubmit={handleCreate} className="mt-8 space-y-6">
               {/* BLOQUE 1: BASIC INFO */}
               <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
@@ -257,7 +265,7 @@ export default function NewCampaignPage() {
                 </div>
               </div>
 
-              {/* BLOQUE 2: OBJETIVO (VISUAL CARDS) */}
+              {/* BLOQUE 2: OBJETIVO */}
               <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
                 <Label required>Campaign Objective</Label>
                 <p className="mb-4 text-xs text-gray-500">
@@ -332,7 +340,6 @@ export default function NewCampaignPage() {
                   </div>
 
                   <div>
-                    {/* ✅ LocationPicker */}
                     <LocationPicker
                       value={geo}
                       onChange={(val) => setGeo(val)}
@@ -341,7 +348,6 @@ export default function NewCampaignPage() {
 
                   <div>
                     <Label required>Daily Budget</Label>
-                    {/* ✅ CurrencyInput */}
                     <CurrencyInput
                       value={budget}
                       onChange={(val) => setBudget(val)}
@@ -365,20 +371,36 @@ export default function NewCampaignPage() {
                   <Label required>Channels</Label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {CHANNELS.map((c) => {
+                      const isGoogleSearch = c.label === "Google Search";
                       const active = channels.includes(c.id);
+
                       return (
                         <button
                           key={c.id}
                           type="button"
                           onClick={() => toggleChannel(c.id)}
-                          className={`h-10 px-4 rounded-xl text-xs font-semibold border transition-all flex items-center gap-2 ${
-                            active
-                              ? "border-purple-500 bg-purple-50 text-purple-900"
-                              : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:border-gray-300"
-                          }`}
+                          disabled={!isGoogleSearch}
+                          className={`
+                            h-10 px-4 rounded-xl text-xs font-semibold border transition-all flex items-center gap-2
+                            ${
+                              active
+                                ? "border-purple-500 bg-purple-50 text-purple-900"
+                                : "border-gray-200 bg-white text-gray-600"
+                            }
+                            ${
+                              !isGoogleSearch
+                                ? "opacity-50 cursor-not-allowed bg-gray-50"
+                                : "hover:border-gray-300 hover:bg-gray-50"
+                            }
+                          `}
                         >
                           {active && <Check className="w-3 h-3" />}
                           {c.label}
+                          {!isGoogleSearch && (
+                            <span className="ml-1 text-[10px] bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded">
+                              Soon
+                            </span>
+                          )}
                         </button>
                       );
                     })}
@@ -392,7 +414,6 @@ export default function NewCampaignPage() {
                 </div>
               </div>
 
-              {/* Error Message */}
               {error && (
                 <div className="animate-in fade-in slide-in-from-top-2 duration-300 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-red-500" />
@@ -400,7 +421,6 @@ export default function NewCampaignPage() {
                 </div>
               )}
 
-              {/* FOOTER CTA */}
               <div className="pt-4 flex items-center justify-between gap-3 border-t border-gray-100 sticky bottom-0 bg-gray-50 pb-6 z-10">
                 <div className="text-xs text-gray-500 hidden sm:block">
                   {!isFormValid ? (
@@ -415,7 +435,7 @@ export default function NewCampaignPage() {
 
                 <button
                   type="submit"
-                  disabled={loading || !isFormValid} // 🔒 BLOQUEO
+                  disabled={loading || !isFormValid}
                   className={`h-12 px-8 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center gap-2 ml-auto
                     ${
                       isFormValid
