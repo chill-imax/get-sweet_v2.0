@@ -4,8 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Bot } from "lucide-react";
+import { useAuth } from "@/context/useContext";
 
 const FloatingChatIcon = () => {
+  const { isAuthenticated } = useAuth();
+
   const [windowSize, setWindowSize] = useState({
     width: typeof window !== "undefined" ? window.innerWidth : 0,
     height: typeof window !== "undefined" ? window.innerHeight : 0,
@@ -19,8 +22,11 @@ const FloatingChatIcon = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // ✅ 3. Lógica de redirección dinámica
+  const destination = isAuthenticated ? "/chat" : "/sign-in";
+
   return (
-    <Link href="/chat">
+    <Link href={destination}>
       <motion.div
         drag
         dragConstraints={{
