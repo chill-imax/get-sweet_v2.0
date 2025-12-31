@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/context/useContext";
+import api from "@/app/api/auth/axios"; // ✅ Instancia centralizada
 import { useToast } from "@/context/ToastContext";
 import { Loader2, Play, Pause, Info } from "lucide-react";
 
@@ -10,7 +10,7 @@ export default function CampaignStatusToggle({
   onStatusChange,
   externalStatus,
 }) {
-  const { token } = useAuth();
+  // ❌ const { token } = useAuth(); // Ya no es necesario
   const toast = useToast();
   const [loading, setLoading] = useState(false);
 
@@ -29,6 +29,7 @@ export default function CampaignStatusToggle({
   // 👂 Sincronizar cuando cambia el estado externo (Google)
   useEffect(() => {
     setIsEnabled(calculateIsActive());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaign?.status, externalStatus]);
 
   const handleToggle = async () => {
@@ -39,32 +40,28 @@ export default function CampaignStatusToggle({
 
     const newStatus = !isEnabled ? "ENABLED" : "PAUSED";
 
-    // Optimistic UI
+    // Optimistic UI (Cambio visual inmediato)
     const originalState = isEnabled;
     setIsEnabled(!isEnabled);
     setLoading(true);
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/campaigns/${campaign._id}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ status: newStatus }),
-        }
-      );
+      // ✅ Axios PATCH
+      const res = await api.patch(`/api/v1/campaigns/${campaign._id}/status`, {
+        status: newStatus,
+      });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
+      const data = res.data;
 
       toast.success(data.message);
       if (onStatusChange) onStatusChange(data.newStatus);
     } catch (error) {
-      toast.error(error.message || "Error updating status");
-      setIsEnabled(originalState); // Rollback
+      // ❌ Rollback si falla
+      setIsEnabled(originalState);
+
+      const errorMsg = error.response?.data?.message || "Error updating status";
+      toast.error(errorMsg);
+      console.error(error);
     } finally {
       setLoading(false);
     }

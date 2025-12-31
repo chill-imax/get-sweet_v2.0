@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
+import api from "@/app/api/auth/axios";
 
 const AuthContext = createContext(null);
 
@@ -18,88 +19,115 @@ export const AuthProvider = ({ children }) => {
     loading: true,
   });
 
-  // 0. HIDRATACIÓN
+  // 0. HIDRATACIÓN (Recuperar token local)
   useEffect(() => {
-    const storedToken = localStorage.getItem("sweetToken");
-    if (storedToken) {
-      setAuthState((prev) => ({
-        ...prev,
-        token: storedToken,
-        isAuthenticated: true,
-        loading: true,
-      }));
-    } else {
-      if (status === "unauthenticated") {
-        setAuthState((prev) => ({ ...prev, loading: false }));
-      }
-    }
-  }, []);
+    // ✅ FIX: Envolvemos en setTimeout para evitar "Cascading Renders"
+    const initAuth = setTimeout(() => {
+      const storedToken = localStorage.getItem("sweetToken");
 
-  // 1. SYNC NEXTAUTH (GOOGLE)
+      if (storedToken) {
+        setAuthState((prev) => ({
+          ...prev,
+          token: storedToken,
+          isAuthenticated: true,
+          // Mantenemos loading: true hasta que el fetchUser valide el token
+        }));
+      } else {
+        // Si no hay token y NextAuth ya terminó de cargar y no hay sesión
+        if (status === "unauthenticated") {
+          setAuthState((prev) => ({ ...prev, loading: false }));
+        }
+      }
+    }, 0);
+
+    return () => clearTimeout(initAuth);
+  }, [status]); // Agregamos status a dep para asegurar consistencia inicial
+
+  // 1. SYNC NEXTAUTH (Google Login)
   useEffect(() => {
     if (status === "loading") return;
 
-    // LOGIN EXITOSO CON GOOGLE
-    if (
-      status === "authenticated" &&
-      session?.user?.accessToken &&
-      !authState.token
-    ) {
-      setAuthState((prev) => ({
-        ...prev,
-        token: session.user.accessToken,
-        isAuthenticated: true,
-        loading: true,
-      }));
-    }
+    // ✅ FIX: Usamos setTimeout para romper la sincronía
+    const syncTimeout = setTimeout(() => {
+      // CASO A: Login exitoso con Google detectado
+      if (
+        status === "authenticated" &&
+        session?.user?.accessToken &&
+        !authState.token
+      ) {
+        localStorage.setItem("sweetToken", session.user.accessToken);
 
-    if (status === "unauthenticated" && !localStorage.getItem("sweetToken")) {
-      setAuthState((prev) => ({ ...prev, loading: false }));
-    }
-  }, [status, session]);
+        setAuthState((prev) => ({
+          ...prev,
+          token: session.user.accessToken,
+          isAuthenticated: true,
+          loading: true, // Ponemos true para que el fetchUser traiga el perfil
+        }));
+      }
 
-  // 2. FETCH PROFILE (Obtiene el flag onboardingCompleted)
+      // CASO B: No hay sesión ni token
+      if (
+        status === "unauthenticated" &&
+        !localStorage.getItem("sweetToken") &&
+        authState.loading // Solo actualizamos si seguía cargando
+      ) {
+        setAuthState((prev) => ({ ...prev, loading: false }));
+      }
+    }, 0);
+
+    return () => clearTimeout(syncTimeout);
+  }, [status, session, authState.token, authState.loading]);
+
+  // 2. FETCH PROFILE (Valida token y obtiene datos reales)
   useEffect(() => {
     if (!authState.token) return;
-    if (authState.user && authState.loading) {
-      setAuthState((prev) => ({ ...prev, loading: false }));
-    }
+
+    // Eliminé el bloque síncrono que causaba conflicto aquí.
+    // Dejamos que el fetch (que es asíncrono) maneje el estado final.
+
+    let isMounted = true;
 
     const fetchUser = async () => {
       try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/user/profile`,
-          { headers: { Authorization: `Bearer ${authState.token}` } }
-        );
-        const data = await res.json();
-        if (!res.ok) throw new Error("Failed");
+        const res = await api.get("/api/v1/user/profile");
 
-        const userData = data.user || data.data || data;
+        if (isMounted) {
+          const data = res.data;
+          const userData = data.user || data.data || data;
 
-        setAuthState({
-          user: userData,
-          token: authState.token,
-          isAuthenticated: true,
-          loading: false,
-        });
+          setAuthState({
+            user: userData,
+            token: authState.token,
+            isAuthenticated: true,
+            loading: false, // ✅ Aquí se apaga el loading de forma segura
+          });
+        }
       } catch (err) {
         console.error("Error fetching profile:", err);
-        localStorage.removeItem("sweetToken");
-        setAuthState({
-          user: null,
-          token: null,
-          isAuthenticated: false,
-          loading: false,
-        });
+        if (isMounted) {
+          localStorage.removeItem("sweetToken");
+          setAuthState({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            loading: false,
+          });
+        }
       }
     };
+
     fetchUser();
+
+    return () => {
+      isMounted = false;
+    };
   }, [authState.token]);
 
   // =========================================================
-  // 3. ROUTE GUARDS (AQUI ESTÁ LA MAGIA 🪄)
+  // 3. ROUTE GUARDS
   // =========================================================
   useEffect(() => {
+    // Si está cargando, no tomamos decisiones de redirección aún
     if (authState.loading) return;
 
     const protectedRoutes = [
@@ -112,7 +140,7 @@ export const AuthProvider = ({ children }) => {
     ];
     const authPages = ["/sign-in", "/sign-up"];
 
-    // A. Protección básica: Si no estás logueado, fuera de rutas privadas
+    // A. Protección básica
     if (
       !authState.isAuthenticated &&
       protectedRoutes.some((r) => pathname.startsWith(r))
@@ -121,22 +149,19 @@ export const AuthProvider = ({ children }) => {
       return;
     }
 
-    // B. FORZAR ONBOARDING (Google & Tradicional)
-    // Si estás logueado, pero el backend dice que NO terminaste el onboarding...
+    // B. Forzar Onboarding
     if (
       authState.isAuthenticated &&
       authState.user &&
       !authState.user.onboardingCompleted
     ) {
-      // ...y no estás ya en la página de onboarding...
       if (pathname !== "/onboarding") {
-        console.log("🚦 Usuario nuevo detectado. Redirigiendo a Onboarding.");
         router.replace("/onboarding");
       }
-      return; // Detener aquí para que no ejecute la regla C
+      return;
     }
 
-    // C. Si ya completaste onboarding, no te dejo entrar a Login/SignUp/Onboarding
+    // C. Redirigir si ya está autenticado
     if (authState.isAuthenticated && authState.user?.onboardingCompleted) {
       if (authPages.includes(pathname) || pathname === "/onboarding") {
         router.replace("/chat");
@@ -160,7 +185,7 @@ export const AuthProvider = ({ children }) => {
       user: userData,
       token: token,
       isAuthenticated: true,
-      loading: false, // Dejamos false para que el Route Guard actúe inmediatamente
+      loading: false,
     });
   };
 
@@ -177,48 +202,20 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (userData) => {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/register`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(userData),
-      }
-    );
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Registration failed");
+    const res = await api.post("/api/v1/auth/register", userData);
+    const data = res.data;
 
-    // Auto-Login
     if (data.token) {
       const userObj = data.user || data.data?.user || data;
       login(userObj, data.token);
     }
     return data;
   };
+
   const updateOnboarding = async (data) => {
-    console.log("📤 Enviando datos de onboarding:", data); // LOG PARA DEPURAR
-
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/user/onboarding`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${authState.token}`,
-          },
-          body: JSON.stringify(data),
-        }
-      );
-
-      const response = await res.json();
-
-      if (!res.ok) {
-        console.error("❌ Error Backend Onboarding:", response);
-        throw new Error(response.message || "Onboarding failed");
-      }
-
-      console.log("✅ Onboarding Exitoso:", response);
+      const res = await api.post("/api/v1/user/onboarding", data);
+      const response = res.data;
 
       setAuthState((prev) => ({
         ...prev,
@@ -229,10 +226,10 @@ export const AuthProvider = ({ children }) => {
         },
       }));
     } catch (error) {
-      console.error("Error en updateOnboarding:", error);
-      throw error; // Lanzamos el error para que el componente muestre el mensaje rojo
+      throw error.response?.data || error;
     }
   };
+
   return (
     <AuthContext.Provider
       value={{
@@ -244,6 +241,10 @@ export const AuthProvider = ({ children }) => {
         updateOnboarding,
       }}
     >
+      {/* Si prefieres ver la app mientras carga (y que los redirects 
+         sucedan visualmente), quita el check de loading. 
+         Si quieres pantalla blanca hasta saber si hay user, déjalo así.
+      */}
       {authState.loading ? null : children}
     </AuthContext.Provider>
   );

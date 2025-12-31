@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { RotateCcw, Loader2 } from "lucide-react";
+import api from "@/app/api/auth/axios"; // ✅ Instancia centralizada
 
 // Contextos
-import { useAuth } from "@/context/useContext";
 import { useToast } from "@/context/ToastContext";
 
 // Imports Modulares
@@ -25,7 +25,7 @@ export default function BrandImportPanel({
   onAICompletedHandled,
   onConfirmBrand,
 }) {
-  const { token } = useAuth();
+  // ❌ const { token } = useAuth(); // Ya no es necesario
   const toast = useToast();
 
   // Estado local para el loading del botón Reset
@@ -66,26 +66,18 @@ export default function BrandImportPanel({
     setIsResetting(true);
     try {
       // 1. Limpiar en Base de Datos (Estrategia + Sources)
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/company/brand-reset`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      // ✅ Axios DELETE
+      await api.delete("/api/v1/company/brand-reset");
 
-      if (!res.ok) throw new Error("Failed to reset brand data on server");
-
-      // 2. Si el servidor respondió OK, limpiamos el Frontend
+      // 2. Si el servidor respondió OK (Axios lanza error si no), limpiamos el Frontend
       resetAllSources();
 
       toast?.success("Brand data cleared successfully");
     } catch (err) {
       console.error(err);
-      toast?.error("Error resetting brand data");
+      const errorMsg =
+        err.response?.data?.message || "Error resetting brand data";
+      toast?.error(errorMsg);
     } finally {
       setIsResetting(false);
       closeConfirm();

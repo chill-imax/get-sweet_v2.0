@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/context/useContext";
+import api from "@/app/api/auth/axios"; // ✅ Instancia centralizada
 import { useToast } from "@/context/ToastContext";
 import { Loader2 } from "lucide-react";
 
 export default function AdGroupToggle({ campaignId, adGroup, onRefresh }) {
-  const { token } = useAuth();
+  // ❌ const { token } = useAuth(); // Ya no es necesario
   const toast = useToast();
 
   // Estado local para respuesta instantánea (Optimistic UI)
@@ -23,32 +23,20 @@ export default function AdGroupToggle({ campaignId, adGroup, onRefresh }) {
   const handleToggle = async () => {
     if (loading) return;
 
-    // 1. Cambio visual inmediato
+    // 1. Cambio visual inmediato (Optimistic)
     const originalStatus = internalStatus;
     const newStatus = isEnabled ? "PAUSED" : "ENABLED";
     setInternalStatus(newStatus);
     setLoading(true);
 
     try {
-      // 2. Petición al Backend
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/campaigns/${campaignId}/adgroups/status`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            adGroupResourceName: adGroup.id,
-            status: newStatus,
-          }),
-        }
-      );
+      // 2. Petición al Backend con Axios
+      await api.patch(`/api/v1/campaigns/${campaignId}/adgroups/status`, {
+        adGroupResourceName: adGroup.id,
+        status: newStatus,
+      });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Error updating status");
-
+      // Axios no lanza error si es 2xx, así que asumimos éxito aquí
       toast.success(
         `Ad Group ${newStatus === "ENABLED" ? "activated" : "paused"}`
       );
@@ -57,9 +45,12 @@ export default function AdGroupToggle({ campaignId, adGroup, onRefresh }) {
       if (onRefresh) onRefresh();
     } catch (error) {
       console.error(error);
-      toast.error("Failed to update status");
-      // Si falla, regresamos el botón a su estado original
+      // Rollback visual si falla
       setInternalStatus(originalStatus);
+
+      const errorMsg =
+        error.response?.data?.message || "Failed to update status";
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }

@@ -1,10 +1,10 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { Mail, Phone, MessageCircleDashed } from "lucide-react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import InfoCardContact from "./InfoCardContact.jsx";
 import { useAuth } from "@/context/useContext";
-import { useRouter } from "next/navigation.js";
+import { useRouter } from "next/navigation";
+import api from "@/app/api/auth/axios"; // ✅ Instancia centralizada
 
 // --- Componente de Input del Formulario ---
 const FormInput = ({
@@ -47,24 +47,25 @@ const FormInput = ({
 
 // --- Componente Principal de la Sección de Contacto ---
 export function ContactUsSection() {
-  const { token, user, isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated } = useAuth(); // ❌ Token eliminado
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!isAuthenticated || !token) {
+    if (!isAuthenticated) {
       router.push("/sign-in");
       return;
     }
-    //voy por aqui
+
     const name = e.target.name.value;
     const email = e.target.email.value;
     const company = e.target.company.value;
     const message = e.target.message.value;
 
-    if (message.leght > 200) {
+    // ✅ CORRECCIÓN: leght -> length
+    if (message.length > 200) {
       alert("Message cannot exceed 200 characters.");
       return;
     }
@@ -72,29 +73,25 @@ export function ContactUsSection() {
     setIsSubmitting(true);
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/contact`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ name, email, company, message }),
-        }
-      );
-
-      if (!res.ok) throw new Error("Error sending message");
+      // ✅ Axios POST
+      await api.post("/api/v1/contact", {
+        name,
+        email,
+        company,
+        message,
+      });
 
       alert("✅ Message sent successfully!");
       e.target.reset();
     } catch (err) {
       console.error(err);
-      alert("Failed to send message");
+      const errorMsg = err.response?.data?.message || "Failed to send message";
+      alert(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
   };
+
   return (
     <section id="contact-us" className="py-20 md:py-32 bg-purple-50">
       <div className="max-w-7xl px-4 mx-auto sm:px-6 lg:px-8">
@@ -120,9 +117,7 @@ export function ContactUsSection() {
             className="lg:col-span-2 p-8 md:p-12 bg-white rounded-3xl shadow-xl border border-gray-100 h-full"
           >
             <form className="space-y-6" onSubmit={handleSubmit}>
-              {" "}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {" "}
                 <FormInput
                   id="name"
                   label="Name"
@@ -130,7 +125,7 @@ export function ContactUsSection() {
                   defaultValue={user?.name || ""}
                   disabled={!isAuthenticated}
                   required
-                />{" "}
+                />
                 <FormInput
                   id="email"
                   label="Email"
@@ -139,27 +134,24 @@ export function ContactUsSection() {
                   defaultValue={user?.email || ""}
                   disabled={!isAuthenticated}
                   required
-                />{" "}
-              </div>{" "}
+                />
+              </div>
               <FormInput
                 id="company"
                 label="Company"
                 placeholder="Get Sweet AI"
                 disabled={!isAuthenticated}
-              />{" "}
+              />
               <div>
-                {" "}
                 <label
                   htmlFor="message"
                   className="block text-base font-semibold text-gray-800 mb-2"
                 >
-                  {" "}
                   Message <span className="text-red-500">*</span>{" "}
                   <span className="text-gray-500 font-normal">
-                    {" "}
                     (max 200 characters)
-                  </span>{" "}
-                </label>{" "}
+                  </span>
+                </label>
                 <textarea
                   id="message"
                   rows="7"
@@ -170,8 +162,8 @@ export function ContactUsSection() {
                   }
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 placeholder-gray-400 text-gray-700 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-colors"
                   required
-                ></textarea>{" "}
-              </div>{" "}
+                ></textarea>
+              </div>
               <motion.button
                 type="submit"
                 disabled={isSubmitting || !isAuthenticated}
@@ -184,13 +176,12 @@ export function ContactUsSection() {
                 whileHover={!isSubmitting ? { scale: 1.02 } : {}}
                 whileTap={!isSubmitting ? { scale: 0.98 } : {}}
               >
-                {" "}
                 {!isAuthenticated
                   ? "Login to send"
                   : isSubmitting
                   ? "Sending..."
-                  : "Send Message"}{" "}
-              </motion.button>{" "}
+                  : "Send Message"}
+              </motion.button>
             </form>
           </motion.div>
 

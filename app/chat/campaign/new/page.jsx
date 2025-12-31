@@ -14,6 +14,7 @@ import {
 import LeftSidebar from "@/components/chat/LeftSideBar";
 import ChatHeader from "@/components/chat/ui/HeaderChat";
 import { useAuth } from "@/context/useContext";
+import api from "@/app/api/auth/axios"; // ✅ Importación de Axios centralizado
 
 // Componentes Custom
 import LocationPicker from "@/components/ui/inputs/LocationPicker";
@@ -93,7 +94,7 @@ const Select = ({ value, onChange, options, required, placeholder }) => (
 
 export default function NewCampaignPage() {
   const router = useRouter();
-  const { token } = useAuth();
+  const { token } = useAuth(); // Solo para check rápido de UX, no para headers
 
   const [isLeftOpen, setIsLeftOpen] = useState(false);
   const headerTitle = useMemo(() => "New campaign", []);
@@ -153,22 +154,10 @@ export default function NewCampaignPage() {
         budget: budget.toString(), // Asegurar string
       };
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      // ✅ Axios: URL base ya configurada, headers automáticos
+      const res = await api.post("/api/v1/campaigns", payload);
 
-      const res = await fetch(`${apiUrl}/api/v1/campaigns`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const responseJson = await res.json();
-
-      if (!res.ok) {
-        throw new Error(responseJson.message || "Failed to create campaign");
-      }
+      const responseJson = res.data; // Axios entrega el body en .data
 
       const campaignId = responseJson.data?._id;
       if (!campaignId) {
@@ -178,7 +167,12 @@ export default function NewCampaignPage() {
       router.push(`/chat/campaign/${campaignId}`);
     } catch (err) {
       console.error(err);
-      setError(err.message || "Error creating campaign. Please try again.");
+      // ✅ Manejo de errores de Axios
+      const errorMsg =
+        err.response?.data?.message ||
+        err.message ||
+        "Error creating campaign. Please try again.";
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }

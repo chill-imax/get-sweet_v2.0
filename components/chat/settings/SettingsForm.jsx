@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useAuth } from "@/context/useContext";
 import { useCompany } from "@/context/CompanyContext";
+import api from "@/app/api/auth/axios"; // ✅ Instancia centralizada
 import {
   Save,
   User,
@@ -18,7 +19,7 @@ import { INDUSTRIES } from "@/components/utils/industries";
 import { COUNTRIES } from "@/components/utils/countries";
 
 export default function SettingsForm() {
-  const { user, token } = useAuth();
+  const { user } = useAuth(); // Token eliminado, el interceptor se encarga
   const {
     companyData,
     updateCompanyState,
@@ -44,7 +45,7 @@ export default function SettingsForm() {
   const selectedCountry = COUNTRIES.find((c) => c.code === countryISO);
 
   // =========================================================
-  // 1. CARGA DE DATOS (DIRECTA)
+  // 1. CARGA DE DATOS (DIRECTA DEL CONTEXTO)
   // =========================================================
   useEffect(() => {
     if (user && companyData) {
@@ -84,7 +85,7 @@ export default function SettingsForm() {
   };
 
   // =========================================================
-  // 2. GUARDADO (SAVE)
+  // 2. GUARDADO (SAVE) CON AXIOS
   // =========================================================
   const handleSave = async () => {
     setSaving(true);
@@ -94,27 +95,19 @@ export default function SettingsForm() {
       const currentDialCode =
         COUNTRIES.find((c) => c.code === countryISO)?.dial_code || "+1";
       const fullPhone = `${currentDialCode} ${phoneNumber}`.trim();
-
       const isoCodeToSend = countryISO;
 
       const promises = [];
-      // A. Usuario
+
+      // A. Usuario (Solo si cambió)
       if (formData.fullName !== initialData.fullName) {
-        const userPromise = fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/user/profile`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ fullName: formData.fullName }),
-          }
+        // ✅ Axios PUT
+        promises.push(
+          api.put("/api/v1/user/profile", { fullName: formData.fullName })
         );
-        promises.push(userPromise);
       }
 
-      // B. Empresa
+      // B. Empresa (Solo si cambió)
       const companyChanged =
         formData.businessName !== initialData.businessName ||
         formData.industry !== initialData.industry ||
@@ -129,29 +122,23 @@ export default function SettingsForm() {
           countryCode: isoCodeToSend,
         };
 
-        const companyPromise = fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/company/profile`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(companyPayload),
-          }
-        ).then(async (res) => {
-          if (res.ok) {
+        // ✅ Axios PUT con actualización optimista del contexto
+        const companyPromise = api
+          .put("/api/v1/company/profile", companyPayload)
+          .then((res) => {
+            // Actualizamos el contexto global de la empresa
             const updated = { ...companyData, ...companyPayload };
             updateCompanyState(updated);
-          }
-          return res;
-        });
+            return res;
+          });
 
         promises.push(companyPromise);
       }
 
+      // Esperar a que todo termine
       await Promise.all(promises);
 
+      // Actualizar estado inicial para futuras comparaciones
       setInitialData({
         ...formData,
         phone: fullPhone,
@@ -161,14 +148,17 @@ export default function SettingsForm() {
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       console.error("Error saving settings:", err);
+      // Opcional: Manejar error visualmente aquí (toast)
     } finally {
       setSaving(false);
     }
   };
 
+  // Lógica de "Has Changes" para deshabilitar el botón
   const currentDial =
     COUNTRIES.find((c) => c.code === countryISO)?.dial_code || "";
   const currentFullPhone = `${currentDial} ${phoneNumber}`.trim();
+
   const hasChanges =
     JSON.stringify(formData) !==
       JSON.stringify({
@@ -203,7 +193,7 @@ export default function SettingsForm() {
             type="text"
             value={formData.fullName}
             onChange={handleChange}
-            className="input-modern"
+            className="w-full h-11 border border-gray-200 rounded-xl py-2 pl-10 pr-3 text-sm focus:ring-2 focus:ring-purple-200 outline-none transition-all"
             placeholder="John Doe"
           />
         </Field>
@@ -213,7 +203,7 @@ export default function SettingsForm() {
             type="email"
             value={formData.email}
             readOnly
-            className="input-modern bg-gray-50 text-gray-500 cursor-not-allowed"
+            className="w-full h-11 border border-gray-200 rounded-xl py-2 pl-10 pr-3 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
           />
         </Field>
       </div>
@@ -235,7 +225,7 @@ export default function SettingsForm() {
             type="text"
             value={formData.businessName}
             onChange={handleChange}
-            className="input-modern"
+            className="w-full h-11 border border-gray-200 rounded-xl py-2 pl-10 pr-3 text-sm focus:ring-2 focus:ring-purple-200 outline-none transition-all"
             placeholder="Acme Inc."
           />
         </Field>
@@ -248,7 +238,7 @@ export default function SettingsForm() {
             name="industry"
             value={formData.industry}
             onChange={handleChange}
-            className="input-modern bg-white cursor-pointer"
+            className="w-full h-11 border border-gray-200 rounded-xl py-2 pl-10 pr-3 text-sm bg-white cursor-pointer focus:ring-2 focus:ring-purple-200 outline-none"
           >
             <option value="" disabled>
               Select an industry
@@ -261,14 +251,14 @@ export default function SettingsForm() {
           </select>
         </Field>
 
-        {/* ---------------- PHONE SECTION (CORREGIDO) ---------------- */}
+        {/* ---------------- PHONE SECTION ---------------- */}
         <div>
           <label className="text-sm font-medium text-gray-700 block mb-1">
             Contact Phone
           </label>
           <div className="flex gap-2 h-10">
             <div className="relative w-[35%] h-full group">
-              {/* ✅ A. Bandera Absoluta (Se muestra SOLO si hay un país seleccionado válido) */}
+              {/* Bandera Absoluta */}
               <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10 flex items-center justify-center">
                 {selectedCountry && selectedCountry.image ? (
                   <Image
@@ -303,14 +293,13 @@ export default function SettingsForm() {
               </div>
             </div>
 
-            {/* 2. Input Numérico */}
+            {/* Input Numérico */}
             <div className="relative flex-1 h-full group">
               <PhoneIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-purple-500 transition-colors" />
               <input
                 type="tel"
                 value={phoneNumber}
                 onChange={(e) => {
-                  // Solo permitir números y espacios
                   const val = e.target.value.replace(/[^\d\s]/g, "");
                   setPhoneNumber(val);
                   setSaved(false);

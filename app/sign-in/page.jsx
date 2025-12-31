@@ -6,20 +6,20 @@ import logo from "../../public/icons/logogetsweet.png";
 import { useState } from "react";
 import { useAuth } from "@/context/useContext";
 import { GoogleLoginBtn } from "@/components/auth/GoogleLogin";
-import { useRouter } from "next/navigation"; // <--- 1. IMPORTAR ROUTER
+import { useRouter } from "next/navigation";
+import api from "@/app/api/auth/axios"; // ✅ Importamos Axios
 
 export default function SignIn() {
-  const router = useRouter(); // <--- 2. INICIALIZAR ROUTER
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Traemos la función login del context
   const { login } = useAuth();
 
   const handleBackToHome = () => {
-    router.push("/"); // <--- 3. NAVEGACIÓN SPA (Sin recarga)
+    router.push("/");
   };
 
   const handleLogin = async (e) => {
@@ -34,47 +34,41 @@ export default function SignIn() {
     }
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/login`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        }
-      );
+      // ✅ Axios: POST limpio y directo
+      const response = await api.post("/api/v1/auth/login", {
+        email,
+        password,
+      });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message || `Error del servidor (${response.status})`
-        );
-      }
+      const data = response.data; // Axios entrega la data aquí
 
       console.log("🔥 Login Exitoso:", data);
 
-      // CORRECCIÓN DE ESTRUCTURA
-      // Buscamos el objeto de usuario donde sea que el backend lo haya puesto
+      // Buscamos el objeto de usuario (ajustar según tu backend)
       const userData = data.user || data.data?.user || data;
 
-      // 4. ACTUALIZAR ESTADO GLOBAL
+      // Actualizar Contexto + LocalStorage (asumiendo que tu función login maneja ambos)
       login(
         {
           id: userData._id || userData.id,
           name: userData.fullName || userData.name,
           email: userData.email,
           role: userData.role,
-          ...userData, // Guardamos el resto de propiedades por si acaso
+          ...userData,
         },
         data.token
       );
 
-      // 5. REDIRECCIÓN SPA (Mantiene el estado)
       router.push("/chat");
     } catch (err) {
       console.error("Error en el login:", err);
-      setError(err.message || "No se pudo conectar al servidor.");
-      setLoading(false); // Solo quitamos loading si falla
+      // ✅ Manejo de error estandarizado de Axios
+      const errorMsg =
+        err.response?.data?.message ||
+        err.message ||
+        "No se pudo conectar al servidor.";
+      setError(errorMsg);
+      setLoading(false);
     }
   };
 

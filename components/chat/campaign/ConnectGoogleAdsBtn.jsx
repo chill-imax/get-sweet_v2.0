@@ -6,10 +6,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   ChevronRight,
-  LogOut, // Importamos icono para desconectar
-  RefreshCw, // Icono para cambiar cuenta
+  LogOut,
+  RefreshCw,
 } from "lucide-react";
-import { useAuth } from "@/context/useContext";
+import api from "@/app/api/auth/axios"; // ✅ Instancia centralizada
 import DisconnectModal from "../modals/DisconnectGoogleAds";
 
 // Icono de Google (Sin cambios)
@@ -39,7 +39,7 @@ const GoogleIcon = () => (
 );
 
 export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
-  const { token } = useAuth();
+  // ❌ const { token } = useAuth(); // Ya no es necesario
 
   const isConnected = googleAdsData?.isConnected || false;
   const selectedCustomerId = googleAdsData?.customerId || null;
@@ -55,11 +55,9 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
   const handleConnect = async () => {
     setLoading(true);
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/googleads/connect/start`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const data = await res.json();
+      // ✅ Axios GET
+      const res = await api.get("/api/v1/googleads/connect/start");
+      const data = res.data;
       if (data.url) window.location.href = data.url;
     } catch (error) {
       console.error(error);
@@ -72,18 +70,17 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
   const fetchAccounts = async () => {
     setLoading(true);
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/googleads/accounts`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (!res.ok) throw new Error("Failed to load accounts");
-
-      const data = await res.json();
+      // ✅ Axios GET
+      const res = await api.get("/api/v1/googleads/accounts");
+      const data = res.data; // Axios data
       setAccounts(data.accounts || []);
       setShowAccountList(true);
     } catch (error) {
       console.error(error);
-      alert("Could not load Google Ads accounts. Please try reconnecting.");
+      alert(
+        error.response?.data?.message ||
+          "Could not load Google Ads accounts. Please try reconnecting."
+      );
     } finally {
       setLoading(false);
     }
@@ -93,26 +90,16 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
   const selectAccount = async (account) => {
     setLoading(true);
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/googleads/accounts/select`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            customerId: account.id,
-            customerName: account.name,
-          }),
-        }
-      );
+      // ✅ Axios POST
+      await api.post("/api/v1/googleads/accounts/select", {
+        customerId: account.id,
+        customerName: account.name,
+      });
 
-      if (!res.ok) throw new Error("Failed to link account");
       window.location.reload();
     } catch (error) {
       console.error(error);
-      alert("Error linking account");
+      alert(error.response?.data?.message || "Error linking account");
     } finally {
       setLoading(false);
     }
@@ -122,14 +109,9 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
   const initiateDisconnect = async () => {
     setLoading(true);
     try {
-      // A. Consultar campañas activas del usuario
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/campaigns`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      const campaigns = await res.json();
+      // A. Consultar campañas activas del usuario (Axios GET)
+      const res = await api.get("/api/v1/campaigns");
+      const campaigns = res.data;
 
       // Filtrar las que están activas o publicadas
       const runningCampaigns = campaigns.filter(
@@ -167,31 +149,16 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
   const executeDisconnect = async () => {
     setLoading(true);
     try {
-      // Llamamos al endpoint (el backend se encargará de pausar si le indicamos)
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/googleads/disconnect`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          // Enviamos flag para pausar campañas si venimos del modal
-          body: JSON.stringify({ pauseCampaigns: true }),
-        }
-      );
-
-      if (res.status === 401) {
-        alert("Session expired. Please login again.");
-        return;
-      }
-      if (!res.ok) throw new Error("Failed to disconnect");
+      // ✅ Axios POST
+      await api.post("/api/v1/googleads/disconnect", {
+        pauseCampaigns: true,
+      });
 
       if (onDisconnect) onDisconnect();
       window.location.reload();
     } catch (error) {
       console.error(error);
-      alert("Error disconnecting");
+      alert(error.response?.data?.message || "Error disconnecting");
     } finally {
       setLoading(false);
       setShowDisconnectModal(false);

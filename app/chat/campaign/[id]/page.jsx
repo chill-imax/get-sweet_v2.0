@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/useContext";
 import { useToast } from "@/context/ToastContext";
-import { CampaignProvider, useCampaign } from "@/context/CampaignContext"; // 👈 IMPORTANTE
+import { CampaignProvider, useCampaign } from "@/context/CampaignContext";
+import api from "@/app/api/auth/axios";
 
 // Componentes Layout
 import LeftSidebar from "@/components/chat/LeftSideBar";
@@ -32,13 +33,7 @@ function CampaignPageContent({ campaignId }) {
   const { token } = useAuth();
   const toast = useToast();
 
-  // 👇 Consumimos TODO del Contexto (Single Source of Truth)
-  const {
-    campaign,
-    setCampaign,
-    loadingInitial,
-    refreshData, // Para forzar recargas si es necesario
-  } = useCampaign();
+  const { campaign, setCampaign, loadingInitial, refreshData } = useCampaign();
 
   // --- Estados de UI ---
   const [isLeftOpen, setIsLeftOpen] = useState(false);
@@ -49,7 +44,7 @@ function CampaignPageContent({ campaignId }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Estados de datos adicionales (que no están en el context principal aún)
+  // Estados de datos adicionales
   const [googleAdsData, setGoogleAdsData] = useState(null);
   const [generatedData, setGeneratedData] = useState(null);
   const [activeGenerationId, setActiveGenerationId] = useState(null);
@@ -81,7 +76,6 @@ function CampaignPageContent({ campaignId }) {
         globalNegatives: campaign.globalNegatives || "",
       });
 
-      // Cargar datos de generación si existen
       if (
         campaign.activeGenerationId &&
         typeof campaign.activeGenerationId === "object"
@@ -96,35 +90,24 @@ function CampaignPageContent({ campaignId }) {
   // --- B. EFECTO: Decisión Inteligente de Pestaña Inicial ---
   useEffect(() => {
     if (!loadingInitial && campaign) {
-      // Si ya está publicada en Google, vamos directo a Resultados
       if (campaign.googleAdsResourceId) {
         setActiveTab("results");
       } else {
-        // Si es borrador, nos quedamos en Settings
         setActiveTab("settings");
       }
     }
-  }, [loadingInitial]); // Solo corre cuando termina de cargar la data inicial
+  }, [loadingInitial]);
 
   // --- C. CARGA DATOS EMPRESA (Company Profile) ---
-  // Esto es ajeno a la campaña, así que lo mantenemos aquí
   useEffect(() => {
     if (!token) return;
+
     const fetchCompanyData = async () => {
       try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/company/profile`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        if (res.ok) {
-          const rawComp = await res.json();
-          const compObj = Array.isArray(rawComp)
-            ? rawComp[0]
-            : rawComp.data || rawComp;
-          if (compObj?.googleAds) setGoogleAdsData(compObj.googleAds);
-        }
+        // ✅ Axios: Sin headers manuales
+        const res = await api.get("/api/v1/company/profile");
+        const compObj = res.data.data || res.data;
+        if (compObj?.googleAds) setGoogleAdsData(compObj.googleAds);
       } catch (error) {
         console.error("Error fetching company data", error);
       }
@@ -135,7 +118,7 @@ function CampaignPageContent({ campaignId }) {
   // --- FUNCIONES DE ACCIÓN (Settings Panel) ---
 
   const handleSaveSettings = async () => {
-    if (!token || !campaignId) return;
+    if (!campaignId) return;
     setIsSaving(true);
     try {
       const payload = {
@@ -146,27 +129,17 @@ function CampaignPageContent({ campaignId }) {
         landingPageUrl: campaignDetails.landingUrl,
       };
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/campaigns/${campaignId}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+      // ✅ Axios PATCH
+      const res = await api.patch(`/api/v1/campaigns/${campaignId}`, payload);
 
-      if (!res.ok) throw new Error("Failed to save");
+      // Axios lanza error si status no es 2xx, no hace falta if(!res.ok)
+      const updatedCampaign = res.data;
 
-      // Actualizamos el contexto
-      const updatedCampaign = await res.json();
       setCampaign((prev) => ({ ...prev, ...updatedCampaign.data }));
-
       toast.success("Settings saved successfully");
     } catch (error) {
-      toast.error("Failed to save settings");
+      console.error(error);
+      toast.error(error.response?.data?.message || "Failed to save settings");
     } finally {
       setIsSaving(false);
     }
@@ -181,31 +154,24 @@ function CampaignPageContent({ campaignId }) {
     try {
       await handleSaveSettings(); // Guardamos antes de generar
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/campaigns/${campaignId}/generate`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ userFeedback: feedbackText }),
-        }
-      );
+      // ✅ Axios POST
+      const res = await api.post(`/api/v1/campaigns/${campaignId}/generate`, {
+        userFeedback: feedbackText,
+      });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
+      const data = res.data; // data directa de axios
 
       setGeneratedData(data.data.structure);
       setActiveGenerationId(data.data._id);
       setDraftVersion(data.data.version);
 
-      // Actualizamos contexto (status cambió a 'review')
       setCampaign((prev) => ({ ...prev, status: "review" }));
-
       toast.success(`Campaign V${data.data.version} generated!`);
     } catch (error) {
-      toast.error("AI failed to generate campaign.");
+      console.error(error);
+      toast.error(
+        error.response?.data?.message || "AI failed to generate campaign."
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -220,20 +186,17 @@ function CampaignPageContent({ campaignId }) {
     const newData = JSON.parse(JSON.stringify(generatedData));
     newData.adGroups[groupIndex] = updatedGroup;
     setGeneratedData(newData);
+
     try {
-      await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/campaigns/${campaignId}/generations/${activeGenerationId}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ structure: newData }),
-        }
+      // ✅ Axios PATCH (Sin await response porque es optimista/background)
+      await api.patch(
+        `/api/v1/campaigns/${campaignId}/generations/${activeGenerationId}`,
+        { structure: newData }
       );
     } catch (e) {
-      console.error(e);
+      console.error("Error updating group:", e);
+      // Opcional: Revertir estado si falla
+      toast.error("Failed to save changes automatically");
     }
   };
 
@@ -242,25 +205,15 @@ function CampaignPageContent({ campaignId }) {
       return;
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/campaigns/${campaignId}/publish`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ targetGroupIndices }),
-        }
-      );
+      // ✅ Axios POST
+      const res = await api.post(`/api/v1/campaigns/${campaignId}/publish`, {
+        targetGroupIndices,
+      });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
+      const data = res.data;
 
       if (data.updatedStructure) setGeneratedData(data.updatedStructure);
 
-      // ✅ ACTUALIZACIÓN CRÍTICA DEL CONTEXTO
-      // Esto hace que el Banner y el Toggle se activen inmediatamente
       const newStatus = "active";
       setCampaign((prev) => ({
         ...prev,
@@ -268,9 +221,7 @@ function CampaignPageContent({ campaignId }) {
         googleAdsResourceId: data.googleResourceId,
       }));
 
-      // Cambiar a pestaña resultados tras publicar
       setActiveTab("results");
-
       toast.success(data.message || "🚀 Updates published to Google Ads!");
 
       if (
@@ -279,11 +230,12 @@ function CampaignPageContent({ campaignId }) {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
 
-      // Forzamos una recarga de datos en el contexto para asegurar sincronización
       refreshData();
     } catch (error) {
       console.error("Publish Error:", error);
-      toast.error(error.message);
+      toast.error(
+        error.response?.data?.message || error.message || "Publish failed"
+      );
     }
   };
 
@@ -297,7 +249,6 @@ function CampaignPageContent({ campaignId }) {
 
   // --- RENDER ---
 
-  // Spinner de carga inicial (Pantalla completa blanca limpia)
   if (loadingInitial) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
@@ -320,13 +271,10 @@ function CampaignPageContent({ campaignId }) {
       />
 
       <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-white">
-        {/* Banner Conectado al Contexto (Sin props de datos) */}
         <CampaignStatusBanner
-          // Las props de acción siguen siendo necesarias
           onUnlock={handleUnlock}
           onRegenerate={handleGenerateDraft}
           campaignId={campaignId}
-          // Nota: campaign, status, y syncing ahora se leen internamente en el Banner desde el Contexto
         />
 
         <div className="pt-3">
@@ -337,13 +285,11 @@ function CampaignPageContent({ campaignId }) {
           {activeTab === "settings" && (
             <div className="h-full overflow-y-auto">
               <SettingsPanel
-                // Datos (SettingsPanel aún requiere props porque maneja el formulario local)
                 campaignDetails={campaignDetails}
                 setCampaignDetails={setCampaignDetails}
                 googleAdsData={googleAdsData}
                 generatedData={generatedData}
                 activeGenerationId={activeGenerationId}
-                // Acciones
                 onGenerateDraft={handleGenerateDraft}
                 onSave={handleSaveSettings}
                 onApprove={handleApproveAndPublish}
@@ -358,7 +304,6 @@ function CampaignPageContent({ campaignId }) {
 
           {activeTab === "results" && (
             <div className="h-full overflow-y-auto">
-              {/* ResultsPanel Conectado al Contexto (Sin props) */}
               <ResultsPanel />
             </div>
           )}

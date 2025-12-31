@@ -3,11 +3,11 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCompany } from "@/context/CompanyContext";
-import { useAuth } from "@/context/useContext";
+import api from "@/app/api/auth/axios"; // ✅ Instancia centralizada
 
 export function useBrandDetails() {
   const router = useRouter();
-  const { token } = useAuth();
+  // ❌ const { token } = useAuth(); // Ya no es necesario
   const { companyData, updateCompanyState, loading } = useCompany();
 
   // 1. Estado Inicial (Limpio y Seguro)
@@ -43,11 +43,9 @@ export function useBrandDetails() {
     if (!companyData) return;
 
     // A. Normalizar la fuente de datos
-    // A veces llega como { data: ... } o { companyData: ... } o plano.
     const source = companyData.data || companyData.companyData || companyData;
 
     // B. Extraer el array de supportingGoals con seguridad
-    // Verificamos si existe y si es un array. Si no, devolvemos [].
     const safeSupportingGoals = Array.isArray(source.supportingGoals)
       ? source.supportingGoals
       : [];
@@ -62,7 +60,7 @@ export function useBrandDetails() {
       mission: source.mission || "",
       vision: source.vision || "",
 
-      // Goals (Aquí es donde forzamos la lectura correcta)
+      // Goals
       primaryGoal: source.primaryGoal || "",
       successMetric: source.successMetric || "",
       timeframe: source.timeframe || "",
@@ -73,11 +71,11 @@ export function useBrandDetails() {
       differentiators: Array.isArray(source.differentiators)
         ? source.differentiators
         : [],
-      values: Array.isArray(source.values) ? source.values : [], // A veces viene como 'values' o 'brandVoice'
+      values: Array.isArray(source.values) ? source.values : [],
       colors: Array.isArray(source.colors) ? source.colors : [],
     });
 
-    // D. Limpieza: Borrar cualquier borrador viejo del navegador para evitar conflictos
+    // D. Limpieza: Borrar cualquier borrador viejo del navegador
     if (typeof window !== "undefined") {
       localStorage.removeItem("sweet:brandDraft");
     }
@@ -100,33 +98,22 @@ export function useBrandDetails() {
     setToast(null);
 
     try {
-      // 1. Preparar Payload (Lo que enviamos al backend)
+      // 1. Preparar Payload
       const payload = {
         ...formData,
         name: formData.brandName,
         businessName: formData.brandName,
-
-        // 🚨 IMPORTANTE: Asegurar que supportingGoals se envíe como Array
+        // Asegurar que supportingGoals se envíe como Array
         supportingGoals: Array.isArray(formData.supportingGoals)
           ? formData.supportingGoals
           : [],
-
         status: "Draft",
       };
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      const res = await fetch(`${apiUrl}/api/v1/company/profile`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
+      // ✅ Axios PUT
+      const res = await api.put("/api/v1/company/profile", payload);
+      const json = res.data;
 
-      if (!res.ok) throw new Error("Failed to save changes");
-
-      const json = await res.json();
       const updatedData = json.data || json.companyData || payload;
 
       // 2. Actualizar el Contexto Global de la App
@@ -148,7 +135,8 @@ export function useBrandDetails() {
       }, 1000);
     } catch (err) {
       console.error(err);
-      setToast({ type: "error", message: "Error saving changes." });
+      const errorMsg = err.response?.data?.message || "Error saving changes.";
+      setToast({ type: "error", message: errorMsg });
     } finally {
       setIsConfirming(false);
     }

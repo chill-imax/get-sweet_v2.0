@@ -32,7 +32,7 @@ export default function Home() {
       <TestimonialsSection />
       <CallToActionSection />
       <Footer />
-      {/* <FloatingChatIcon /> */}
+      <FloatingChatIcon />
     </div>
   );
 }

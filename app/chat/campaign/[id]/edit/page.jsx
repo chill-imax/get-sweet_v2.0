@@ -17,7 +17,8 @@ import ChatHeader from "@/components/chat/ui/HeaderChat";
 import ConnectGoogleAdsBtn from "@/components/chat/campaign/ConnectGoogleAdsBtn";
 import LocationPicker from "@/components/ui/inputs/LocationPicker";
 import LanguagePicker from "@/components/ui/inputs/LanguagePicker";
-import { useAuth } from "@/context/useContext";
+import { useAuth } from "@/context/useContext"; // Se mantiene solo para verificar estado de carga del token
+import api from "@/app/api/auth/axios"; // ✅ Instancia centralizada
 import {
   CAMPAIGN_OBJECTIVES,
   TIMEFRAMES,
@@ -98,15 +99,6 @@ const CHANNEL_OPTIONS = [
   "YouTube",
   "Display",
 ];
-const TONE_OPTIONS = [
-  "Professional",
-  "Friendly",
-  "Bold",
-  "Witty",
-  "Urgent",
-  "Empathetic",
-  "Direct",
-];
 const STATUS_OPTIONS = [
   "planning",
   "draft",
@@ -146,7 +138,7 @@ export default function CampaignEditPage() {
     primaryGoal: "",
     successMetric: "",
     timeframe: "",
-    language: "English", // Agregado campo idioma
+    language: "English",
   });
 
   // SNAPSHOT PARA DIRTY CHECKING
@@ -156,35 +148,37 @@ export default function CampaignEditPage() {
   // 1. CARGA DE DATOS
   // ========================================================================
   useEffect(() => {
+    // Esperamos a tener token para evitar llamadas 401 prematuras,
+    // aunque axios manejaría el error, es mejor prevenir en UI.
     if (!token || !campaignId) return;
 
     const loadAllData = async () => {
       try {
         setLoading(true);
-        const headers = { Authorization: `Bearer ${token}` };
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
+        // ✅ Axios: Promise.all con api.get
         const [campRes, compRes] = await Promise.all([
-          fetch(`${apiUrl}/api/v1/campaigns/${campaignId}`, { headers }),
-          fetch(`${apiUrl}/api/v1/company/profile`, { headers }),
+          api.get(`/api/v1/campaigns/${campaignId}`),
+          api.get(`/api/v1/company/profile`),
         ]);
 
-        const campData = await campRes.json();
+        const campData = campRes.data;
 
         let companyData = { primaryGoal: "", successMetric: "", timeframe: "" };
-        if (compRes.ok) {
-          const rawComp = await compRes.json();
-          const compObj = Array.isArray(rawComp)
-            ? rawComp[0]
-            : rawComp.data || rawComp;
-          if (compObj) {
-            companyData = {
-              primaryGoal: compObj.primaryGoal || "",
-              successMetric: compObj.successMetric || "",
-              timeframe: compObj.timeframe || "",
-            };
-            if (compObj.googleAds) setGoogleAdsData(compObj.googleAds);
-          }
+
+        // Manejo flexible de respuesta (por si viene envuelto en .data o directo)
+        const rawComp = compRes.data;
+        const compObj = Array.isArray(rawComp)
+          ? rawComp[0]
+          : rawComp.data || rawComp;
+
+        if (compObj) {
+          companyData = {
+            primaryGoal: compObj.primaryGoal || "",
+            successMetric: compObj.successMetric || "",
+            timeframe: compObj.timeframe || "",
+          };
+          if (compObj.googleAds) setGoogleAdsData(compObj.googleAds);
         }
 
         const loadedForm = {
@@ -210,7 +204,10 @@ export default function CampaignEditPage() {
         setOriginalForm(JSON.parse(JSON.stringify(loadedForm))); // Snapshot inicial
       } catch (err) {
         console.error("❌ Error loading data:", err);
-        setToast({ type: "error", message: "Failed to load data" });
+        setToast({
+          type: "error",
+          message: err.response?.data?.message || "Failed to load data",
+        });
       } finally {
         setLoading(false);
       }
@@ -223,7 +220,6 @@ export default function CampaignEditPage() {
   // VALIDACIONES & DIRTY CHECKING
   // ========================================================================
 
-  // 1. Campos obligatorios no vacíos
   const isFormValid =
     form.name?.trim() &&
     form.objective &&
@@ -232,10 +228,7 @@ export default function CampaignEditPage() {
     form.budget &&
     form.language;
 
-  // 2. ¿Hay cambios respecto al original?
   const hasChanges = JSON.stringify(form) !== JSON.stringify(originalForm);
-
-  // 3. ¿Podemos guardar?
   const canSave = isFormValid && hasChanges && !saving;
 
   // ========================================================================
@@ -254,18 +247,12 @@ export default function CampaignEditPage() {
 
   async function handleSave(e) {
     e.preventDefault();
-    if (!canSave) return; // Doble check de seguridad
+    if (!canSave) return;
 
     setToast(null);
     setSaving(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      };
-
       const campaignPayload = {
         name: form.name,
         objective: form.objective,
@@ -277,7 +264,7 @@ export default function CampaignEditPage() {
         primaryKpi: form.primaryKpi,
         tone: form.tone,
         status: form.status,
-        language: form.language, // No olvidar idioma
+        language: form.language,
       };
 
       const companyPayload = {
@@ -287,27 +274,22 @@ export default function CampaignEditPage() {
       };
 
       await Promise.all([
-        fetch(`${apiUrl}/api/v1/campaigns/${campaignId}`, {
-          method: "PATCH",
-          headers,
-          body: JSON.stringify(campaignPayload),
-        }),
-        fetch(`${apiUrl}/api/v1/company/profile`, {
-          method: "PUT",
-          headers,
-          body: JSON.stringify(companyPayload),
-        }),
+        api.patch(`/api/v1/campaigns/${campaignId}`, campaignPayload),
+        api.put(`/api/v1/company/profile`, companyPayload),
       ]);
 
       setToast({ type: "success", message: "Changes saved successfully!" });
 
-      // ✅ ACTUALIZAR SNAPSHOT AL NUEVO ESTADO
+      // Actualizar Snapshot
       setOriginalForm(JSON.parse(JSON.stringify(form)));
 
       setTimeout(() => setToast(null), 2500);
     } catch (e2) {
       console.error(e2);
-      setToast({ type: "error", message: "Failed to save. Try again." });
+      setToast({
+        type: "error",
+        message: e2.response?.data?.message || "Failed to save. Try again.",
+      });
     } finally {
       setSaving(false);
     }
@@ -413,7 +395,7 @@ export default function CampaignEditPage() {
                       <Select
                         value={form.objective}
                         onChange={(e) => setField("objective", e.target.value)}
-                        options={CAMPAIGN_OBJECTIVES} // ✅ Usando lista estandarizada
+                        options={CAMPAIGN_OBJECTIVES}
                         placeholder="Select objective..."
                         required
                       />
@@ -533,7 +515,7 @@ export default function CampaignEditPage() {
                         onChange={(e) =>
                           setField("primaryGoal", e.target.value)
                         }
-                        options={PRIMARY_GOALS} // ✅ Utils
+                        options={PRIMARY_GOALS}
                       />
                     </div>
                     <div>
@@ -550,7 +532,7 @@ export default function CampaignEditPage() {
                       <Select
                         value={form.timeframe}
                         onChange={(e) => setField("timeframe", e.target.value)}
-                        options={TIMEFRAMES} // ✅ Utils
+                        options={TIMEFRAMES}
                       />
                     </div>
                   </div>
@@ -567,7 +549,7 @@ export default function CampaignEditPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={!canSave} // 🔒 BLOQUEO INTELIGENTE
+                    disabled={!canSave}
                     title={
                       !isFormValid
                         ? "Fill all required fields *"

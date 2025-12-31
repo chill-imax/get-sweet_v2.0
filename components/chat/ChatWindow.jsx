@@ -8,9 +8,10 @@ import SuggestionChips from "./SuggestionChips";
 import ChatInput from "./ChatInput";
 import { useAuth } from "@/context/useContext";
 import ToneSelector from "../ui/inputs/ToneSelector";
+import api from "@/app/api/auth/axios"; // ✅ Instancia centralizada
 
 export default function ChatWindow({ activeContext }) {
-  const { token, user } = useAuth();
+  const { token, user } = useAuth(); // token se usa solo para condicionar la carga inicial
 
   // Estados
   const [guestId, setGuestId] = useState(null);
@@ -47,41 +48,30 @@ export default function ChatWindow({ activeContext }) {
     }
   }, [user]);
 
-  // 2. Cargar Historial (Corregido)
+  // 2. Cargar Historial
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const queryParams = new URLSearchParams();
+        // ✅ Axios maneja los params automáticamente
+        const params = {};
         if (activeContext && activeContext !== "general") {
-          queryParams.append("campaignId", activeContext);
+          params.campaignId = activeContext;
         }
 
-        const res = await fetch(
-          `${
-            process.env.NEXT_PUBLIC_API_URL
-          }/api/v1/chat/history?${queryParams.toString()}`,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!res.ok) throw new Error("Failed to fetch chat history");
-
-        const data = await res.json();
+        const res = await api.get("/api/v1/chat/history", { params });
+        const data = res.data;
 
         // Mapeo crucial: Backend 'content' -> Frontend 'text'
         const formattedMessages = data.map((msg) => ({
           id: msg._id || msg.id || crypto.randomUUID(),
           role: msg.role,
-          text: msg.content, // Aquí solucionamos el undefined
+          text: msg.content,
         }));
 
         setMessages(formattedMessages);
       } catch (error) {
         console.error("❌ Error loading history:", error);
+        // No bloqueamos la UI si falla el historial, solo logueamos
       }
     };
 
@@ -99,19 +89,8 @@ export default function ChatWindow({ activeContext }) {
     setSuggestedTone(selectedTone);
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/company/tone`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ tone: selectedTone }),
-        }
-      );
-
-      if (!res.ok) throw new Error("Error updating tone");
+      // ✅ Axios PATCH
+      await api.patch("/api/v1/company/tone", { tone: selectedTone });
       setTimeout(() => setShowToneSelector(false), 500);
     } catch (err) {
       console.error("Failed to update tone:", err);
@@ -136,7 +115,7 @@ export default function ChatWindow({ activeContext }) {
       };
       setMessages((prev) => [...prev, userMsg]);
 
-      // Modo Guest
+      // Modo Guest (Simulación local)
       if (!userId || userId.startsWith("guest-")) {
         setTimeout(() => {
           setMessages((prev) => [
@@ -154,25 +133,15 @@ export default function ChatWindow({ activeContext }) {
 
       // Usuario Autenticado
       try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/chat/message`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              userId,
-              userMessage: text,
-              campaignId: activeContext !== "general" ? activeContext : null,
-            }),
-          }
-        );
+        const payload = {
+          userId,
+          userMessage: text,
+          campaignId: activeContext !== "general" ? activeContext : null,
+        };
 
-        const data = await res.json();
-
-        if (!res.ok) throw new Error(data.error || "Server Error");
+        // ✅ Axios POST
+        const res = await api.post("/api/v1/chat/message", payload);
+        const data = res.data;
 
         const replyText = typeof data.reply === "string" ? data.reply : "";
 
@@ -200,12 +169,16 @@ export default function ChatWindow({ activeContext }) {
         }
       } catch (err) {
         console.error("❌ Message Error:", err);
-        setError("Connection error. Please try again.");
+        const errorMsg =
+          err.response?.data?.error ||
+          err.message ||
+          "Connection error. Please try again.";
+        setError(errorMsg);
       } finally {
         setIsLoading(false);
       }
     },
-    [userId, token, activeContext]
+    [userId, activeContext] // Token ya no es dependencia directa gracias al interceptor
   );
 
   const hasConversation = messages.length > 0;

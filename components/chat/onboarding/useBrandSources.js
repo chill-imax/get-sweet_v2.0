@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useAuth } from "@/context/useContext";
+import api from "@/app/api/auth/axios";
 import { useCompany } from "@/context/CompanyContext";
 import { useToast } from "@/context/ToastContext";
 import { uid, buildDraftFromSources } from "./utils";
@@ -13,7 +13,7 @@ export function useBrandSources({
   onAICompletedHandled,
   aiCompletedSignal,
 }) {
-  const { token } = useAuth();
+  // ❌ const { token } = useAuth(); // Ya no es necesario
   const { companyData, updateCompanyState, loading } = useCompany();
   const toast = useToast();
 
@@ -26,7 +26,6 @@ export function useBrandSources({
       data: null,
     },
     decks: [],
-    // 🧠 UPDATE 1: Agregamos hasChatHistory al estado inicial
     ai: {
       status: "none",
       lastUpdatedAt: null,
@@ -54,13 +53,14 @@ export function useBrandSources({
   // 1. HYDRATION & FETCHING
   // =========================================================
   useEffect(() => {
-    if (loading || !companyData || !token) return;
+    // Eliminamos 'token' de la condición
+    if (loading || !companyData) return;
 
     // A. Hydrate Website
     const currentUrl = companyData.website || "";
     setWebsiteUrl((prev) => (prev ? prev : currentUrl));
 
-    // B. Hydrate Basic State (mantenemos lo previo mientras cargamos lo async)
+    // B. Hydrate Basic State
     setSources((prev) => ({
       ...prev,
       website: {
@@ -74,30 +74,27 @@ export function useBrandSources({
     // C. Fetch PDF History
     const fetchPdfHistory = async () => {
       try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/brand/sources`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (res.ok) {
-          const json = await res.json();
-          const sourcesList = json.data || json;
-          const pdfs = Array.isArray(sourcesList)
-            ? sourcesList.filter((s) => s.sourceType === "pdf")
-            : [];
+        // ✅ Axios GET
+        const res = await api.get("/api/v1/brand/sources");
+        const json = res.data;
+        const sourcesList = json.data || json; // Ajuste flexible por si el backend varía
 
-          if (pdfs.length > 0) {
-            setSources((prev) => ({
-              ...prev,
-              decks: pdfs.map((pdf) => ({
-                id: pdf._id || uid(),
-                status: "ready",
-                fileName: pdf.sourceName || "Documento PDF",
-                lastUpdatedAt: pdf.createdAt,
-                error: null,
-                cloudinaryUrl: pdf.url || "",
-              })),
-            }));
-          }
+        const pdfs = Array.isArray(sourcesList)
+          ? sourcesList.filter((s) => s.sourceType === "pdf")
+          : [];
+
+        if (pdfs.length > 0) {
+          setSources((prev) => ({
+            ...prev,
+            decks: pdfs.map((pdf) => ({
+              id: pdf._id || uid(),
+              status: "ready",
+              fileName: pdf.sourceName || "Documento PDF",
+              lastUpdatedAt: pdf.createdAt,
+              error: null,
+              cloudinaryUrl: pdf.url || "",
+            })),
+          }));
         }
       } catch (err) {
         console.error("Error fetching PDF history:", err);
@@ -107,26 +104,20 @@ export function useBrandSources({
     // D. Fetch Chat Status
     const fetchChatStatus = async () => {
       try {
-        // 👇 CAMBIO AQUÍ: Apuntar a /status en lugar de /history
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/chat/status`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        // ✅ Axios GET
+        const res = await api.get("/api/v1/chat/status");
+        const data = res.data;
 
-        if (res.ok) {
-          const data = await res.json();
-          // Ahora data.count SÍ existirá
-          const hasHistory = data.count > 0;
+        const hasHistory = data.count > 0;
 
-          setSources((prev) => ({
-            ...prev,
-            ai: {
-              status: hasHistory ? "ready" : "none",
-              lastUpdatedAt: data.lastMessageAt,
-              hasChatHistory: hasHistory,
-            },
-          }));
-        }
+        setSources((prev) => ({
+          ...prev,
+          ai: {
+            status: hasHistory ? "ready" : "none",
+            lastUpdatedAt: data.lastMessageAt,
+            hasChatHistory: hasHistory,
+          },
+        }));
       } catch (err) {
         console.error("Error fetching chat status:", err);
       }
@@ -134,25 +125,23 @@ export function useBrandSources({
 
     fetchPdfHistory();
     fetchChatStatus();
-  }, [companyData, loading, token]);
+  }, [companyData, loading]); // Token eliminado de dependencias
 
   // =========================================================
-  // 2. SIGNAL HANDLER (Cuando termina la entrevista IA)
+  // 2. SIGNAL HANDLER
   // =========================================================
   useEffect(() => {
     if (!aiCompletedSignal) return;
 
-    // 🧠 UPDATE 3: Si la IA terminó, marcamos que hay historial
     setSources((prev) => {
       const nextState = {
         ...prev,
         ai: {
           status: "ready",
           lastUpdatedAt: new Date().toISOString(),
-          hasChatHistory: true, // ✅ Ahora sí hay historial
+          hasChatHistory: true,
         },
       };
-      // Notificar al padre
       onDraftReady?.(buildDraftFromSources(nextState));
       return nextState;
     });
@@ -198,15 +187,10 @@ export function useBrandSources({
     setWebsiteUrl("");
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/brand/sources/website`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (!res.ok) throw new Error("Failed to clear website on server");
-      const data = await res.json();
+      // ✅ Axios DELETE
+      const res = await api.delete("/api/v1/brand/sources/website");
+      const data = res.data;
+
       if (data.companyData) updateCompanyState(data.companyData);
     } catch (err) {
       console.error("Error clearing website:", err);
@@ -229,20 +213,9 @@ export function useBrandSources({
     onStartImport?.("website");
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/brand/import/url`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ url: url }),
-        }
-      );
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to analyze website.");
+      // ✅ Axios POST
+      const res = await api.post("/api/v1/brand/import/url", { url });
+      const data = res.data;
 
       updateCompanyState(data.companyData);
 
@@ -265,15 +238,18 @@ export function useBrandSources({
       }, 0);
     } catch (e) {
       console.error("Web import error:", e);
+      const errorMsg =
+        e.response?.data?.error || e.message || "Failed to analyze website.";
+
       setSources((prev) => ({
         ...prev,
         website: {
           ...prev.website,
           status: "failed",
-          error: e.message || "Failed to analyze website.",
+          error: errorMsg,
         },
       }));
-      setError(e.message || "Failed to analyze website. Please check the URL.");
+      setError(errorMsg);
       onImportFailed?.();
     }
   }
@@ -300,14 +276,8 @@ export function useBrandSources({
 
     try {
       if (deckId.length === 24) {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/brand/sources/${deckId}`,
-          {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        if (!res.ok) throw new Error("Failed to delete source");
+        // ✅ Axios DELETE
+        await api.delete(`/api/v1/brand/sources/${deckId}`);
       }
     } catch (err) {
       console.error("Error removing deck:", err);
@@ -353,19 +323,9 @@ export function useBrandSources({
         const formData = new FormData();
         formData.append("file", file);
 
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/brand/import/files`,
-          {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-            body: formData,
-          }
-        );
-
-        const data = await res.json();
-        if (!res.ok)
-          throw new Error(data.error || `Failed to upload ${file.name}`);
-        return { fileName: file.name, result: data };
+        // ✅ Axios POST (FormData automático)
+        const res = await api.post("/api/v1/brand/import/files", formData);
+        return { fileName: file.name, result: res.data };
       });
 
       const results = await Promise.all(uploadPromises);
@@ -423,21 +383,9 @@ export function useBrandSources({
   // =========================================================
   async function clearAISource() {
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/chat/history`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      // ✅ Axios DELETE
+      await api.delete("/api/v1/chat/history");
 
-      if (!res.ok) {
-        throw new Error("Failed to clear history on server");
-      }
-
-      // 🧠 UPDATE 4: Resetear hasChatHistory a false
       setSources((prev) => ({
         ...prev,
         ai: {

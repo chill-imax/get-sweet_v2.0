@@ -3,19 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2, Lock, Unlock, Loader2 } from "lucide-react";
-import { useAuth } from "@/context/useContext";
-// 👇 IMPORTANTE: Usamos el Contexto para datos instantáneos
+import api from "@/app/api/auth/axios"; // ✅ Instancia centralizada
 import { useCampaign } from "@/context/CampaignContext";
 import CampaignStatusToggle from "./CampaignStatusToggle";
 
 export default function CampaignStatusBanner({
   provider = "Google Ads",
   onUnlock, // Acción local (UI)
-  onRegenerate, // Acción local (UI)
   deleteLabel = "Delete campaign",
 }) {
   const router = useRouter();
-  const { token } = useAuth();
+  // ❌ const { token } = useAuth(); // Ya no es necesario
 
   // 👇 Consumimos la campaña directamente del Contexto
   const { campaign } = useCampaign();
@@ -40,27 +38,17 @@ export default function CampaignStatusBanner({
     }
     setBusy(true);
     setErr("");
+
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/campaigns/${safeId}`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (res.ok) {
-        router.push("/chat/brand-ai");
-      } else {
-        const json = await res.json();
-        setErr(json.message || "Failed to delete");
-        setBusy(false);
-      }
+      // ✅ Axios DELETE
+      await api.delete(`/api/v1/campaigns/${safeId}`);
+
+      // Si tiene éxito, redirigimos (no necesitamos setBusy(false) porque desmontamos)
+      router.push("/chat/brand-ai");
     } catch (error) {
       console.error(error);
-      setErr("Network error");
+      const errorMsg = error.response?.data?.message || "Failed to delete";
+      setErr(errorMsg);
       setBusy(false);
     }
   };
@@ -76,7 +64,6 @@ export default function CampaignStatusBanner({
                 <div className="text-sm font-semibold text-gray-900 truncate">
                   {provider} campaign
                 </div>
-                {/* 🗑️ Pill Eliminado */}
               </div>
               {err && (
                 <div className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
@@ -88,10 +75,9 @@ export default function CampaignStatusBanner({
             {/* LADO DERECHO: Acciones */}
             <div className="shrink-0 flex items-center gap-2">
               {/* 👇 TOGGLE (Solo si está publicada en Google) */}
-              {/* No pasamos props, el Toggle es inteligente y usa el Contexto */}
               {campaign.googleAdsResourceId && (
                 <div className="mr-2 border-r border-gray-200 pr-4">
-                  <CampaignStatusToggle />
+                  <CampaignStatusToggle campaign={campaign} />
                 </div>
               )}
 
