@@ -17,7 +17,7 @@ export default function PrivacyPolicy() {
             Privacy Policy
           </h1>
           <p className="text-lg text-gray-600">
-            Effective as of August 01, 2023
+            Effective as of January 02, 2026
           </p>
         </motion.div>
 
@@ -36,11 +36,84 @@ export default function PrivacyPolicy() {
               governs data collection and usage. For the purposes of this
               Privacy Policy, unless otherwise noted, all references to SWEEET
               AI LLC include 3400 Cottage Way and Sweeet AI. The Sweeet AI
-              application is a social media automation through AI application.
-              By using the Sweeet AI application, you consent to the data
-              practices described in this statement.
+              application is an AI-powered platform for social media automation
+              and advertising management. By using the Sweeet AI application,
+              you consent to the data practices described in this statement.
             </p>
           </section>
+
+          {/* 🛡️ SECCIÓN CRÍTICA PARA GOOGLE - NO BORRAR NI MODIFICAR */}
+          <section className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Google User Data & Limited Use Policy
+            </h2>
+            <p className="mb-4 font-medium text-gray-800">
+              GetSweet.AI&apos;s use and transfer to any other app of
+              information received from Google APIs will adhere to{" "}
+              <a
+                href="https://developers.google.com/terms/api-services-user-data-policy"
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-600 underline"
+              >
+                Google API Services User Data Policy
+              </a>
+              , including the Limited Use requirements.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold text-gray-900">
+                  1. Data We Access
+                </h3>
+                <p>
+                  We strictly access your Google Ads account hierarchy, campaign
+                  metadata (names, IDs, status), and performance metrics
+                  (impressions, clicks, cost) solely to generate the audits and
+                  reports requested by you.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-gray-900">
+                  2. How We Use Your Data
+                </h3>
+                <ul className="list-disc pl-5 space-y-1 mt-1">
+                  <li>
+                    <strong>Analytics:</strong> To visualize your marketing
+                    performance within our dashboard.
+                  </li>
+                  <li>
+                    <strong>AI Processing:</strong> Your campaign data is
+                    processed by our internal AI models to generate specific
+                    optimization suggestions for <em>your</em> account.{" "}
+                    <strong>
+                      We do not use your data to train generalized AI models for
+                      other users.
+                    </strong>
+                  </li>
+                  <li>
+                    <strong>Management:</strong> To execute &quot;Pause&quot;
+                    commands on campaigns only when explicitly triggered by you.
+                  </li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-gray-900">
+                  3. Data Retention & Security
+                </h3>
+                <p>
+                  Your Google Ads refresh tokens are stored using
+                  industry-standard <strong>AES-256 encryption</strong> at rest.
+                  We do not store historical performance data permanently; it is
+                  fetched on-demand. Upon disconnection via the settings menu,
+                  all access tokens are permanently deleted from our servers.
+                </p>
+              </div>
+            </div>
+          </section>
+          {/* 🛡️ FIN SECCIÓN GOOGLE */}
 
           <section>
             <h2 className="text-2xl font-semibold text-gray-900 mb-3">
@@ -63,16 +136,6 @@ export default function PrivacyPolicy() {
               If you purchase Sweeet AI&apos;s products and services, we collect
               billing and credit card information. This information is used to
               complete the purchase transaction.
-            </p>
-            <p className="mt-3">
-              We do not collect any personal information about you unless you
-              voluntarily provide it to us. However, you may be required to
-              provide certain personal information to us when you elect to use
-              certain products or services. These may include: registering for
-              an account, entering a contest, signing up for special offers,
-              sending us an email, or submitting payment information. We use
-              this information to communicate with you and provide the services
-              requested.
             </p>
           </section>
 
@@ -100,12 +163,9 @@ export default function PrivacyPolicy() {
               required to maintain the confidentiality of your information and
               use it only to provide services to Sweeet AI.
             </p>
-            <p className="mt-3">
-              Sweeet AI may disclose your personal information without notice if
-              required to do so by law or in good faith belief that such action
-              is necessary to comply with legal processes, protect and defend
-              Sweeet AI&apos;s rights or property, or ensure the safety of users and
-              the public.
+            <p className="mt-3 font-semibold text-red-600">
+              *Note: Google User Data accessed via OAuth scopes is NEVER sold to
+              data brokers or shared with third-party advertising platforms.*
             </p>
           </section>
 
@@ -124,12 +184,6 @@ export default function PrivacyPolicy() {
                 from their records.
               </li>
             </ul>
-            <p className="mt-3">
-              Please note that we may not be able to comply with deletion
-              requests if it is necessary to complete transactions, detect fraud
-              or security incidents, debug issues, comply with legal obligations,
-              or other exceptions permitted by law.
-            </p>
           </section>
 
           <section>
@@ -141,28 +195,6 @@ export default function PrivacyPolicy() {
               information from children under the age of thirteen. If you are
               under thirteen, you must ask your parent or guardian for
               permission to use this application.
-            </p>
-          </section>
-
-          <section>
-<h2 className="text-2xl font-semibold mt-10 mb-4">Privacy</h2>
-            <p>
-              You may connect your Sweeet AI account to third-party accounts.
-              By connecting, you consent to sharing your information per the
-              third party&apos;s privacy settings. You may disconnect your account at
-              any time in the settings.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-3">
-              E-mail Communications
-            </h2>
-            <p>
-              From time to time, Sweeet AI may contact you via email for
-              announcements, offers, alerts, confirmations, or surveys. To stop
-              receiving promotional communications, you may opt out by clicking
-              the unsubscribe button in our emails.
             </p>
           </section>
 

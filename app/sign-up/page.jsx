@@ -215,7 +215,7 @@ export default function SignUp() {
               <span className="ml-3 text-sm text-gray-600">
                 I agree to the{" "}
                 <a
-                  href="/terms"
+                  href="/terms-of-service"
                   className="text-purple-600 hover:text-purple-700 font-medium transition duration-150"
                 >
                   Terms of Service

@@ -123,7 +123,7 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <a href="/terms" className={linkClasses}>
+                <a href="/terms-of-service" className={linkClasses}>
                   Terms of Service
                 </a>
               </li>
