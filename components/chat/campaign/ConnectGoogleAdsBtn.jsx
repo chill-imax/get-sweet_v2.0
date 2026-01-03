@@ -8,12 +8,12 @@ import {
   ChevronRight,
   LogOut,
   RefreshCw,
-  X, // Importamos X para poder cerrar la lista si nos arrepentimos
+  X,
 } from "lucide-react";
 import api from "@/app/api/auth/axios";
 import DisconnectModal from "../modals/DisconnectGoogleAds";
 
-// Icono de Google (Sin cambios)
+// --- Icono de Google ---
 const GoogleIcon = () => (
   <svg
     className="w-4 h-4"
@@ -42,7 +42,6 @@ const GoogleIcon = () => (
 export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
   const isConnected = googleAdsData?.isConnected || false;
   const selectedCustomerId = googleAdsData?.customerId || null;
-  // ✅ Asegúrate de que el backend envíe 'customerName' en googleAdsData
   const selectedCustomerName = googleAdsData?.customerName || null;
 
   const [loading, setLoading] = useState(false);
@@ -64,14 +63,18 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
     }
   };
 
-  // 2. Fetch de Cuentas (Modificado para manejar errores UI)
+  // 2. Fetch de Cuentas
   const fetchAccounts = async () => {
     setLoading(true);
     try {
       const res = await api.get("/api/v1/googleads/accounts");
-      // Asumiendo que el backend devuelve { accounts: [{ id: 123, name: "Mi Campaña" }] }
-      setAccounts(res.data.accounts || []);
-      setShowAccountList(true); // ✅ Importante: Abrir la lista al terminar de cargar
+      // Blindaje: aceptar array directo o { accounts: [...] }
+      const accountsList = Array.isArray(res.data)
+        ? res.data
+        : res.data.accounts || [];
+
+      setAccounts(accountsList);
+      setShowAccountList(true);
     } catch (error) {
       console.error(error);
       alert("Could not load Google Ads accounts.");
@@ -86,7 +89,7 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
     try {
       await api.post("/api/v1/googleads/accounts/select", {
         customerId: account.id,
-        customerName: account.name, // ✅ Guardamos el nombre para mostrarlo luego
+        customerName: account.name,
       });
       window.location.reload();
     } catch (error) {
@@ -96,59 +99,95 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
     }
   };
 
-  // 4. Lógica de Desconexión
+  // 4. Lógica de Desconexión (AQUÍ ESTABA EL PROBLEMA)
   const initiateDisconnect = async () => {
     setLoading(true);
     try {
+      // A. Consultar campañas
       const res = await api.get("/api/v1/campaigns");
-      const runningCampaigns = res.data.filter(
-        (c) =>
-          (c.status === "active" || c.status === "published") &&
-          c.googleAdsResourceId
+
+      // B. Asegurar que sea array
+      const allCampaigns = Array.isArray(res.data)
+        ? res.data
+        : res.data.data || [];
+
+      console.log("🔍 Todas las campañas encontradas:", allCampaigns);
+
+      // C. Filtro Mejorado: Detecta 'active', 'published', 'ENABLED' (mayúsculas/minúsculas)
+      const runningCampaigns = allCampaigns.filter((c) => {
+        const status = c.status?.toLowerCase() || "";
+        const isActiveStatus = [
+          "active",
+          "published",
+          "enabled",
+          "learning",
+        ].includes(status);
+        const hasGoogleId = !!c.googleAdsResourceId; // Tiene que estar vinculada
+
+        return isActiveStatus && hasGoogleId;
+      });
+
+      console.log(
+        "🚨 Campañas Activas detectadas para pausar:",
+        runningCampaigns
       );
 
       if (runningCampaigns.length > 0) {
+        // CASO 1: HAY CAMPAÑAS -> Modal Obligatorio
         setActiveCampaigns(runningCampaigns);
         setShowDisconnectModal(true);
-        setLoading(false);
+        // NO llamamos a executeDisconnect aquí. Esperamos al modal.
       } else {
-        if (confirm("Are you sure you want to disconnect?")) {
+        // CASO 2: NO HAY CAMPAÑAS -> Confirmación simple
+        if (
+          confirm(
+            "Are you sure you want to disconnect? No active campaigns were found to pause."
+          )
+        ) {
           await executeDisconnect();
-        } else {
-          setLoading(false);
         }
       }
     } catch (error) {
+      console.error("Error checking campaigns", error);
+      // Fallback: Si falla la API, advertimos que no pudimos verificar
       if (
-        confirm("Disconnect Google Ads? (Unable to check active campaigns)")
+        confirm(
+          "⚠️ Error checking campaigns status. Disconnect anyway? (Active ads might keep running)"
+        )
       ) {
         await executeDisconnect();
-      } else {
-        setLoading(false);
       }
+    } finally {
+      setLoading(false);
     }
   };
 
+  // 5. Ejecutar la desconexión real
   const executeDisconnect = async () => {
     setLoading(true);
     try {
-      await api.post("/api/v1/googleads/disconnect", { pauseCampaigns: true });
+      // Importante: El backend usa 'pauseCampaigns: true' para intentar pausar todo lo que encuentre
+      // Ahora que arreglamos el backend (decryptGoogleToken), esto funcionará real.
+      await api.post("/api/v1/googleads/disconnect", {
+        pauseCampaigns: true,
+      });
+
       if (onDisconnect) onDisconnect();
       window.location.reload();
     } catch (error) {
-      alert("Error disconnecting");
+      console.error(error);
+      alert(error.response?.data?.message || "Error disconnecting");
+      setShowDisconnectModal(false); // Cerrar modal si hubo error
     } finally {
       setLoading(false);
-      setShowDisconnectModal(false);
     }
   };
 
-  // ✅ HELPER: Renderizar lista de cuentas (Reutilizable para caso 2 y 3)
+  // Helper renderizado lista
   const renderAccountList = () => (
     <div className="mt-3 bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm animate-in fade-in slide-in-from-top-2">
       <div className="px-3 py-2 bg-gray-50 text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b border-gray-200 flex justify-between items-center">
         <span>Select Account</span>
-        {/* Botón para cerrar la lista si nos arrepentimos */}
         <button
           onClick={() => setShowAccountList(false)}
           className="text-gray-400 hover:text-gray-700"
@@ -170,7 +209,6 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
               className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 border-b border-gray-100 last:border-0 flex items-center justify-between group transition-colors"
             >
               <span>
-                {/* ✅ Aquí mostramos el NOMBRE legible */}
                 <span className="block font-medium text-gray-900">
                   {acc.name || "Unnamed Account"}
                 </span>
@@ -186,7 +224,7 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
     </div>
   );
 
-  // --- RENDER: CASO 3: CONECTADO Y CUENTA SELECCIONADA (VERDE) ---
+  // --- RENDERIZADO PRINCIPAL ---
   if (isConnected && selectedCustomerId) {
     return (
       <>
@@ -198,7 +236,6 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
               </div>
               <div>
                 <div className="text-sm font-bold text-green-800 flex items-center gap-1">
-                  {/* ✅ Mostramos nombre si existe, sino ID */}
                   {selectedCustomerName || "Account Connected"}
                   <CheckCircle2 className="w-4 h-4" />
                 </div>
@@ -210,14 +247,9 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => {
-                  // ✅ Lógica corregida para el botón Change
-                  if (showAccountList) {
-                    setShowAccountList(false);
-                  } else {
-                    fetchAccounts(); // Esto cargará y abrirá la lista
-                  }
-                }}
+                onClick={() =>
+                  showAccountList ? setShowAccountList(false) : fetchAccounts()
+                }
                 disabled={loading}
                 className="text-xs font-semibold text-green-700 hover:text-green-900 bg-green-100 hover:bg-green-200 px-3 py-2 rounded-lg transition-colors flex items-center gap-1"
               >
@@ -243,16 +275,15 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
               </button>
             </div>
           </div>
-
-          {/* ✅ Aquí insertamos la lista si se activó el botón Change */}
           {showAccountList && renderAccountList()}
         </div>
 
+        {/* MODAL DE DESCONEXIÓN */}
         {showDisconnectModal && (
           <DisconnectModal
             activeCampaigns={activeCampaigns}
             isDisconnecting={loading}
-            onConfirm={executeDisconnect}
+            onConfirm={executeDisconnect} // ✅ Esto llama a la desconexión real
             onCancel={() => {
               setShowDisconnectModal(false);
               setLoading(false);
@@ -263,7 +294,7 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
     );
   }
 
-  // --- RENDER: CASO 2: CONECTADO PERO FALTA SELECCIONAR (NARANJA) ---
+  // --- CASO 2: CONECTADO SIN CUENTA ---
   if (isConnected && !selectedCustomerId) {
     return (
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 shadow-sm">
@@ -279,7 +310,6 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
               Authorization granted, but no Ad Account selected.
             </p>
           </div>
-          {/* Botón de salida de emergencia */}
           <button
             onClick={initiateDisconnect}
             className="text-amber-700 hover:text-red-600 p-1"
@@ -287,7 +317,6 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
             <LogOut className="w-4 h-4" />
           </button>
         </div>
-
         {!showAccountList ? (
           <button
             onClick={fetchAccounts}
@@ -301,14 +330,13 @@ export default function ConnectGoogleAdsBtn({ googleAdsData, onDisconnect }) {
             )}
           </button>
         ) : (
-          // ✅ Usamos el mismo helper
           renderAccountList()
         )}
       </div>
     );
   }
 
-  // --- RENDER: CASO 1: DESCONECTADO (AZUL) ---
+  // --- CASO 1: DESCONECTADO ---
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
       <div className="flex items-start gap-4">

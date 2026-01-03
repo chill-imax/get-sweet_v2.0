@@ -3,33 +3,40 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2, Lock, Unlock, Loader2 } from "lucide-react";
-import api from "@/app/api/auth/axios"; // ✅ Instancia centralizada
-import { useCampaign } from "@/context/CampaignContext";
+import api from "@/app/api/auth/axios";
+import { useCampaign } from "@/context/CampaignContext"; // ✅ Usamos el hook
 import CampaignStatusToggle from "./CampaignStatusToggle";
 
 export default function CampaignStatusBanner({
   provider = "Google Ads",
-  onUnlock, // Acción local (UI)
+  onUnlock,
   deleteLabel = "Delete campaign",
 }) {
   const router = useRouter();
-  // ❌ const { token } = useAuth(); // Ya no es necesario
 
-  // 👇 Consumimos la campaña directamente del Contexto
-  const { campaign } = useCampaign();
+  // 1. Traemos también googleStatus e isSyncing del contexto
+  const { campaign, googleStatus, isSyncing } = useCampaign();
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
-  // Si no hay campaña cargada aún, no mostramos el banner
   if (!campaign) return null;
 
   const safeId = campaign._id;
-
-  // Lógica para mostrar botón de desbloqueo (basada en flujo interno)
   const isLocked =
     campaign.status === "approved" || campaign.status === "locked";
+
+  // 🔥 LÓGICA DE VISIBILIDAD DEL SWITCH 🔥
+  // Solo mostramos el Master Switch si:
+  // 1. La campaña tiene un ID de Google (fue publicada).
+  // 2. Y ADEMÁS: Ya tenemos un status real de Google (googleStatus !== null)
+  //    O estamos sincronizando (isSyncing) para evitar parpadeos.
+  //
+  // Si desconectas la cuenta: el sync fallará, googleStatus quedará null e isSyncing false.
+  // Resultado: El botón desaparece.
+  const showMasterSwitch =
+    campaign.googleAdsResourceId && (googleStatus !== null || isSyncing);
 
   const handleDelete = async () => {
     if (!safeId) {
@@ -40,10 +47,7 @@ export default function CampaignStatusBanner({
     setErr("");
 
     try {
-      // ✅ Axios DELETE
       await api.delete(`/api/v1/campaigns/${safeId}`);
-
-      // Si tiene éxito, redirigimos (no necesitamos setBusy(false) porque desmontamos)
       router.push("/chat/brand-ai");
     } catch (error) {
       console.error(error);
@@ -74,14 +78,14 @@ export default function CampaignStatusBanner({
 
             {/* LADO DERECHO: Acciones */}
             <div className="shrink-0 flex items-center gap-2">
-              {/* 👇 TOGGLE (Solo si está publicada en Google) */}
-              {campaign.googleAdsResourceId && (
-                <div className="mr-2 border-r border-gray-200 pr-4">
+              {/* 👇 TOGGLE CORREGIDO (Usa la nueva variable showMasterSwitch) */}
+              {showMasterSwitch && (
+                <div className="mr-2 border-r border-gray-200 pr-4 animate-in fade-in duration-300">
                   <CampaignStatusToggle campaign={campaign} />
                 </div>
               )}
 
-              {/* Botón Unlock (Solo si está bloqueada/aprobada localmente) */}
+              {/* Botón Unlock */}
               {isLocked && (
                 <button
                   type="button"
