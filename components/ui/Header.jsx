@@ -52,12 +52,12 @@ const NavLinks = ({
       >
         How it works
       </button>
-      <button
+      {/* <button
         onClick={() => handleClick("/#pricing")}
         className="text-gray-700 hover:text-black px-3 py-2 rounded-lg transition"
       >
         Pricing
-      </button>
+      </button> */}
       <button
         onClick={() => handleClick("/case-studies")}
         className="text-gray-700 hover:text-black px-3 py-2 rounded-lg transition"
@@ -164,7 +164,7 @@ const Header = () => {
             {isAuthenticated ? (
               <>
                 <span className="text-sm font-medium text-purple-900 mr-4">
-                  Hey {user?.name?.split(" ")[0] || "user"}!
+                  Hey {user?.fullName?.split(" ")[0] || "user"}!
                 </span>
                 <button
                   onClick={() => logout()}
