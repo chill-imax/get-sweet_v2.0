@@ -68,11 +68,11 @@ export default function Footer() {
                   How it works?
                 </a>
               </li>
-              <li>
+              {/* <li>
                 <a href="#pricing" className={linkClasses}>
                   Pricing
                 </a>
-              </li>
+              </li> */}
             </ul>
           </motion.div>
 
