@@ -127,6 +127,9 @@ function CampaignPageContent({ campaignId }) {
         geo: campaignDetails.geo,
         budget: campaignDetails.budget,
         landingPageUrl: campaignDetails.landingUrl,
+        language: campaignDetails.language,
+        bidStrategy: campaignDetails.bidStrategy,
+        globalNegatives: campaignDetails.globalNegatives,
       };
 
       // ✅ Axios PATCH

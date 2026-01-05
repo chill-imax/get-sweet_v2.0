@@ -76,7 +76,10 @@ function GoogleIconCircle({ size = "md" }) {
       className={`relative ${map[size]} shrink-0 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center shadow-sm`}
     >
       <span className="absolute inset-0 rounded-full ring-1 ring-black/5" />
-      <SiGoogleads className="relative text-[22px]" style={{ color: "#4285F4" }} />
+      <SiGoogleads
+        className="relative text-[22px]"
+        style={{ color: "#4285F4" }}
+      />
     </span>
   );
 }
@@ -85,7 +88,15 @@ function GoogleIconCircle({ size = "md" }) {
    Cards + Buttons
 ------------------------------ */
 
-function Card({ title, subtitle, metaLeft, metaRight, badge, iconNode, onClick }) {
+function Card({
+  title,
+  subtitle,
+  metaLeft,
+  metaRight,
+  badge,
+  iconNode,
+  onClick,
+}) {
   return (
     <button
       type="button"
@@ -99,14 +110,20 @@ function Card({ title, subtitle, metaLeft, metaRight, badge, iconNode, onClick }
             {iconNode ? (
               <span className="relative w-9 h-9 shrink-0 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center shadow-sm">
                 <span className="absolute inset-0 rounded-full ring-1 ring-black/5" />
-                <span className="relative text-[18px] leading-none">{iconNode}</span>
+                <span className="relative text-[18px] leading-none">
+                  {iconNode}
+                </span>
               </span>
             ) : null}
 
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-gray-900 truncate">{title}</div>
+              <div className="text-sm font-semibold text-gray-900 truncate">
+                {title}
+              </div>
               {subtitle ? (
-                <div className="text-xs text-gray-600 mt-0.5 truncate">{subtitle}</div>
+                <div className="text-xs text-gray-600 mt-0.5 truncate">
+                  {subtitle}
+                </div>
               ) : null}
             </div>
           </div>
@@ -115,7 +132,7 @@ function Card({ title, subtitle, metaLeft, metaRight, badge, iconNode, onClick }
         {badge ? <div className="shrink-0">{badge}</div> : null}
       </div>
 
-      {(metaLeft || metaRight) ? (
+      {metaLeft || metaRight ? (
         <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
           <div className="truncate">{metaLeft}</div>
           <div className="shrink-0">{metaRight}</div>
@@ -138,8 +155,7 @@ function LaunchCircleButton({
   const isGoogle = variant === "google";
   const isRequest = variant === "request";
 
-  const baseWrap =
-    "flex flex-col items-center gap-2 group select-none";
+  const baseWrap = "flex flex-col items-center gap-2 group select-none";
   const circleBase =
     "w-14 h-14 rounded-full border shadow-sm flex items-center justify-center transition";
 
@@ -158,7 +174,9 @@ function LaunchCircleButton({
       type="button"
       onClick={onClick}
       disabled={!enabled && !isRequest}
-      className={`${baseWrap} ${(!enabled && !isRequest) ? "opacity-60 cursor-not-allowed" : ""}`}
+      className={`${baseWrap} ${
+        !enabled && !isRequest ? "opacity-60 cursor-not-allowed" : ""
+      }`}
       aria-disabled={!enabled && !isRequest}
       title={!enabled && !isRequest ? "Coming soon" : undefined}
     >
@@ -168,14 +186,18 @@ function LaunchCircleButton({
         ) : isRequest ? (
           <Plus className="w-6 h-6 text-white" />
         ) : (
-          <Icon className={`w-6 h-6 ${enabled ? "text-gray-800" : "text-gray-400"}`} />
+          <Icon
+            className={`w-6 h-6 ${enabled ? "text-gray-800" : "text-gray-400"}`}
+          />
         )}
       </div>
 
       <div className="text-center">
         <div className={`text-xs font-semibold ${labelClass}`}>{label}</div>
         {sublabel ? (
-          <div className={`text-[11px] mt-0.5 ${sublabelClass}`}>{sublabel}</div>
+          <div className={`text-[11px] mt-0.5 ${sublabelClass}`}>
+            {sublabel}
+          </div>
         ) : null}
       </div>
     </button>
@@ -205,17 +227,22 @@ export default function CampaignsClient() {
     async function load() {
       setLoading(true);
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/campaigns`, {
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          cache: "no-store",
-        });
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/campaigns`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            cache: "no-store",
+          }
+        );
 
         if (!res.ok) throw new Error("No campaigns endpoint yet");
         const data = await res.json();
-        const list = Array.isArray(data) ? data : data?.data || data?.campaigns || [];
+        const list = Array.isArray(data)
+          ? data
+          : data?.data || data?.campaigns || [];
         if (!cancelled) setCampaigns(list);
       } catch {
         if (cancelled) return;
@@ -250,7 +277,7 @@ export default function CampaignsClient() {
 
   function requestFeature() {
     // Replace with your own route/modal later
-    router.push("/chat/feature-request");
+    // router.push("/chat/feature-request");
   }
 
   const templates = useMemo(
@@ -360,10 +387,16 @@ export default function CampaignsClient() {
 
               {/* Filter buttons */}
               <div className="mt-8 flex items-center justify-center gap-2 flex-wrap">
-                <Pill active={view === "campaigns"} onClick={() => setView("campaigns")}>
+                <Pill
+                  active={view === "campaigns"}
+                  onClick={() => setView("campaigns")}
+                >
                   Your campaigns
                 </Pill>
-                <Pill active={view === "templates"} onClick={() => setView("templates")}>
+                <Pill
+                  active={view === "templates"}
+                  onClick={() => setView("templates")}
+                >
                   Templates
                 </Pill>
               </div>
@@ -375,7 +408,9 @@ export default function CampaignsClient() {
               {view === "campaigns" ? (
                 <section>
                   <div>
-                    <h2 className="text-lg font-semibold text-gray-900">Recents</h2>
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      Recents
+                    </h2>
                     <p className="text-sm text-gray-600 mt-1">
                       Open an existing campaign.
                     </p>
@@ -412,7 +447,9 @@ export default function CampaignsClient() {
                             metaLeft={metaLeft}
                             metaRight={metaRight}
                             badge={<StatusPill status={status} />}
-                            iconNode={<SiGoogleads style={{ color: "#4285F4" }} />}
+                            iconNode={
+                              <SiGoogleads style={{ color: "#4285F4" }} />
+                            }
                             onClick={() => router.push(`/chat/campaign/${cid}`)}
                           />
                         );
@@ -430,9 +467,12 @@ export default function CampaignsClient() {
               {view === "templates" ? (
                 <section>
                   <div>
-                    <h2 className="text-lg font-semibold text-gray-900">Templates</h2>
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      Templates
+                    </h2>
                     <p className="text-sm text-gray-600 mt-1">
-                      Start from a proven structure — we’ll customize it to your brand.
+                      Start from a proven structure — we’ll customize it to your
+                      brand.
                     </p>
                   </div>
 
