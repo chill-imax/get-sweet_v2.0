@@ -278,6 +278,8 @@ function CampaignPageContent({ campaignId }) {
           onUnlock={handleUnlock}
           onRegenerate={handleGenerateDraft}
           campaignId={campaignId}
+          onOpenLeft={() => setIsLeftOpen(true)}
+          onOpenRight={() => setIsRightOpen(true)}
         />
 
         <div className="pt-3">
