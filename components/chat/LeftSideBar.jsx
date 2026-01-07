@@ -23,7 +23,8 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
 
   const [campaignList, setCampaignList] = useState([]);
 
-  const getInitials = (name) => (name ? name.substring(0, 2).toUpperCase() : "U");
+  const getInitials = (name) =>
+    name ? name.substring(0, 2).toUpperCase() : "U";
 
   // URL-derived active state for a specific campaign id
   const activeCampaignId = useMemo(() => {
@@ -32,7 +33,7 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
 
     const rest = pathname.replace("/chat/campaign/", "");
     const id = rest.split("/")[0];
-    if (!id || id === "new") return null; // don't treat /new as a campaign
+    if (!id || id === "new") return null;
     return id;
   }, [pathname]);
 
@@ -43,7 +44,9 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
   // ✅ NEW: Brand AI page
   const isOnBrandAI = useMemo(() => {
     if (!pathname) return false;
-    return pathname === "/chat/brand-ai" || pathname.startsWith("/chat/brand-ai/");
+    return (
+      pathname === "/chat/brand-ai" || pathname.startsWith("/chat/brand-ai/")
+    );
   }, [pathname]);
 
   // ✅ Campaigns “home” page (hub / marketplace page)
@@ -54,9 +57,12 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
   const getCampaignsList = async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/campaigns`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/campaigns`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
       if (!res.ok) return;
 
@@ -119,11 +125,16 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
       >
         {/* Header */}
         <div className="p-5 border-b border-slate-800 flex items-center justify-between shrink-0">
-          <button onClick={() => router.push("/chat")} className="flex items-center gap-2">
+          <button
+            onClick={() => router.push("/chat")}
+            className="flex items-center gap-2"
+          >
             <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-lg tracking-tight">Sweet Manager</span>
+            <span className="font-bold text-lg tracking-tight">
+              Sweet Manager
+            </span>
           </button>
 
           <button
@@ -193,7 +204,9 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
             </div>
 
             {campaignList.length === 0 ? (
-              <p className="px-3 text-xs text-slate-600 italic">No campaigns yet.</p>
+              <p className="px-3 text-xs text-slate-600 italic">
+                No campaigns yet.
+              </p>
             ) : (
               <div className="pt-2 space-y-1">
                 {campaignList.map((c) => {
@@ -244,27 +257,46 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
 
           <div className="p-4 border-t border-slate-800">
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                {user?.image || user?.avatar ? (
-                  <Image
-                    src={user.image || user.avatar}
-                    alt="Profile"
-                    width={36}
-                    height={36}
-                    className="w-9 h-9 rounded-full object-cover bg-slate-700"
-                  />
-                ) : (
-                  <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
-                    {getInitials(user?.fullName)}
-                  </div>
-                )}
+              <div className="flex items-center gap-3 min-w-0 relative">
+                <div className="relative">
+                  {user?.image || user?.avatar ? (
+                    <Image
+                      src={user.image || user.avatar}
+                      alt="Profile"
+                      width={36}
+                      height={36}
+                      className={`w-9 h-9 rounded-full object-cover bg-slate-700 border-2 ${
+                        user?.plan && user.plan !== "free"
+                          ? "border-yellow-500"
+                          : "border-transparent"
+                      }`}
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
+                      {getInitials(user?.fullName)}
+                    </div>
+                  )}
+
+                  {/* CORONA PARA USUARIOS PREMIUM */}
+                  {user?.plan && user.plan !== "free" && (
+                    <div className="absolute -top-3 -right-1 transform rotate-12 drop-shadow-sm">
+                      <span className="text-lg">👑</span>
+                    </div>
+                  )}
+                </div>
 
                 <div className="flex flex-col min-w-0">
                   <p className="font-medium text-sm truncate text-white">
                     {user?.fullName || "Guest"}
                   </p>
-                  <p className="text-xs text-slate-500 truncate capitalize">
-                    {user?.role || "Free plan"}
+                  <p
+                    className={`text-[10px] font-bold uppercase tracking-wider ${
+                      user?.plan && user.plan !== "free"
+                        ? "text-yellow-500"
+                        : "text-slate-500"
+                    }`}
+                  >
+                    {user?.plan ? `${user.plan}` : "Free"}
                   </p>
                 </div>
               </div>
