@@ -13,22 +13,16 @@ import FloatingChatIcon from "@/components/ui/sections/FloatingChat";
 import CustomSystemSection from "@/components/ui/sections/CustomSystem";
 import TestimonialsSection from "@/components/ui/sections/Testimonials";
 import WhyWorkWithUs from "@/components/ui/sections/WhyWorkWithUs";
-import CaseStudiesTeaser from "@/components/ui/sections/CaseStudieTeaser";
 
 export default function Home() {
   return (
     <div>
       <Header />
       <HeroSection />
-
       <HowItWorksSection />
       <WhyWorkWithUs />
       <CustomSystemSection />
       <StatsSection />
-      {/*<IntegrationsSection />*/}
-      {/*<CaseStudiesTeaser />*/}
-      {/* <PricingSection /> */}
-      {/* <SecurityTrustSection /> */}
       <TestimonialsSection />
       <CallToActionSection />
       <Footer />
