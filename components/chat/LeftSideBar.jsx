@@ -11,6 +11,7 @@ import {
   User,
   Plus,
   LayoutGrid,
+  Radar,
 } from "lucide-react";
 import { useAuth } from "@/context/useContext";
 import Image from "next/image";
@@ -49,9 +50,14 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
     );
   }, [pathname]);
 
-  // ✅ Campaigns “home” page (hub / marketplace page)
   const isOnCampaignsHome = useMemo(() => {
     return pathname === "/chat/campaign" || pathname === "/chat/campaign/";
+  }, [pathname]);
+
+  const isOnCompetitors = useMemo(() => {
+    return (
+      pathname === "/chat/competitors" || pathname === "/chat/competitors/"
+    );
   }, [pathname]);
 
   const getCampaignsList = async () => {
@@ -93,6 +99,10 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
 
   function navigateToBrandAI() {
     router.push("/chat/brand-ai");
+    setIsOpen?.(false);
+  }
+  function navigateToCompetitors() {
+    router.push("/chat/competitors");
     setIsOpen?.(false);
   }
 
@@ -173,6 +183,18 @@ export default function LeftSidebar({ isOpen, setIsOpen }) {
             >
               <HouseHeart className="w-4 h-4" />
               Brand Kit
+            </button>
+
+            <button
+              onClick={navigateToCompetitors}
+              className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                isOnCompetitors
+                  ? "bg-purple-600 text-white"
+                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
+              }`}
+            >
+              <Radar className="w-4 h-4" />
+              Competitors Intelligence
             </button>
           </nav>
 
