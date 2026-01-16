@@ -26,7 +26,26 @@ export const AuthProvider = ({ children }) => {
   });
 
   // =========================================================
-  // 1. FUNCIÓN REUTILIZABLE PARA CARGAR PERFIL
+  // 1. LOGOUT (Definido arriba para ser usado en listeners)
+  // =========================================================
+  const logout = useCallback(async () => {
+    console.log("Ejecutando logout...");
+    localStorage.removeItem("sweetToken");
+
+    // Seteamos el estado a false inmediatamente para frenar peticiones
+    setAuthState({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      loading: false,
+    });
+
+    await signOut({ redirect: false });
+    router.push("/sign-in");
+  }, [router]);
+
+  // =========================================================
+  // 2. FUNCIÓN REUTILIZABLE PARA CARGAR PERFIL
   // =========================================================
   const fetchUser = useCallback(
     async (tokenToUse) => {
@@ -47,38 +66,46 @@ export const AuthProvider = ({ children }) => {
         }));
       } catch (err) {
         console.error("Error fetching profile:", err);
-        // Solo limpiamos si el error es de autenticación (401)
+        // Si el interceptor de axios funciona, este bloque catch
+        // será secundario, pero lo dejamos por seguridad.
         if (err.response?.status === 401) {
-          localStorage.removeItem("sweetToken");
-          setAuthState({
-            user: null,
-            token: null,
-            isAuthenticated: false,
-            loading: false,
-          });
+          logout();
         }
       }
     },
-    [authState.token]
+    [authState.token, logout]
   );
 
   // =========================================================
-  // 2. HIDRATACIÓN & SYNC NEXTAUTH
+  // 3. ESCUCHA DE EVENTO GLOBAL (AXIOS)
   // =========================================================
   useEffect(() => {
-    const initAuth = setTimeout(() => {
+    const handleUnauthorized = () => {
+      console.warn("Evento 401 recibido desde Axios");
+      logout();
+    };
+
+    window.addEventListener("auth:unauthorized", handleUnauthorized);
+    return () => {
+      window.removeEventListener("auth:unauthorized", handleUnauthorized);
+    };
+  }, [logout]);
+
+  // =========================================================
+  // 4. HIDRATACIÓN & SYNC NEXTAUTH
+  // =========================================================
+  useEffect(() => {
+    const initAuth = () => {
       const storedToken = localStorage.getItem("sweetToken");
 
-      // CASO A: Hay un token en localStorage
       if (storedToken && !authState.token) {
         setAuthState((prev) => ({
           ...prev,
           token: storedToken,
           isAuthenticated: true,
+          // No quitamos loading hasta que fetchUser responda
         }));
-      }
-      // CASO B: Login con Google (NextAuth) detectado
-      else if (
+      } else if (
         status === "authenticated" &&
         session?.user?.accessToken &&
         !storedToken
@@ -89,18 +116,16 @@ export const AuthProvider = ({ children }) => {
           token: session.user.accessToken,
           isAuthenticated: true,
         }));
-      }
-      // CASO C: No hay nada
-      else if (status === "unauthenticated" && !storedToken) {
+      } else if (status === "unauthenticated" && !storedToken) {
         setAuthState((prev) => ({ ...prev, loading: false }));
       }
-    }, 0);
+    };
 
-    return () => clearTimeout(initAuth);
+    initAuth();
   }, [status, session, authState.token]);
 
   // =========================================================
-  // 3. AUTO-FETCH CUANDO HAY TOKEN
+  // 5. AUTO-FETCH CUANDO HAY TOKEN
   // =========================================================
   useEffect(() => {
     if (authState.token && !authState.user) {
@@ -109,7 +134,7 @@ export const AuthProvider = ({ children }) => {
   }, [authState.token, authState.user, fetchUser]);
 
   // =========================================================
-  // 4. ROUTE GUARDS
+  // 6. ROUTE GUARDS
   // =========================================================
   useEffect(() => {
     if (authState.loading) return;
@@ -122,26 +147,22 @@ export const AuthProvider = ({ children }) => {
       "/onboarding",
     ];
     const authPages = ["/sign-in", "/sign-up"];
+    const isProtectedRoute = protectedRoutes.some((r) =>
+      pathname.startsWith(r)
+    );
 
-    if (
-      !authState.isAuthenticated &&
-      protectedRoutes.some((r) => pathname.startsWith(r))
-    ) {
+    if (!authState.isAuthenticated && isProtectedRoute) {
       router.replace("/sign-in");
       return;
     }
 
-    if (
-      authState.isAuthenticated &&
-      authState.user &&
-      !authState.user.onboardingCompleted
-    ) {
-      if (pathname !== "/onboarding") router.replace("/onboarding");
-      return;
-    }
-
-    if (authState.isAuthenticated && authState.user?.onboardingCompleted) {
-      if (authPages.includes(pathname) || pathname === "/onboarding") {
+    if (authState.isAuthenticated && authState.user) {
+      if (!authState.user.onboardingCompleted && pathname !== "/onboarding") {
+        router.replace("/onboarding");
+      } else if (
+        authState.user.onboardingCompleted &&
+        (authPages.includes(pathname) || pathname === "/onboarding")
+      ) {
         router.replace("/chat");
       }
     }
@@ -154,7 +175,7 @@ export const AuthProvider = ({ children }) => {
   ]);
 
   // =========================================================
-  // 5. MÉTODOS EXPUESTOS
+  // 7. MÉTODOS EXPUESTOS
   // =========================================================
   const loginWithGoogle = () => signIn("google");
 
@@ -168,18 +189,6 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
-  const logout = async () => {
-    localStorage.removeItem("sweetToken");
-    await signOut({ redirect: false });
-    setAuthState({
-      user: null,
-      token: null,
-      isAuthenticated: false,
-      loading: false,
-    });
-    router.push("/sign-in");
-  };
-
   const register = async (userData) => {
     const res = await api.post("/api/v1/auth/register", userData);
     const data = res.data;
@@ -190,9 +199,9 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
-  const updateOnboarding = async (data) => {
+  const updateOnboarding = async (onboardingData) => {
     try {
-      const res = await api.post("/api/v1/user/onboarding", data);
+      const res = await api.post("/api/v1/user/onboarding", onboardingData);
       const response = res.data;
       setAuthState((prev) => ({
         ...prev,
@@ -215,7 +224,14 @@ export const AuthProvider = ({ children }) => {
         refreshProfile: () => fetchUser(authState.token),
       }}
     >
-      {authState.loading ? null : children}
+      {/* Evita parpadeos de UI mientras carga el estado inicial */}
+      {authState.loading && pathname !== "/sign-in" ? (
+        <div className="flex items-center justify-center h-screen">
+          Cargando...
+        </div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 };
