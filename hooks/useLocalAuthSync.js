@@ -5,7 +5,7 @@ export default function useLocalAuthSync({ googleStatus, setAuthState }) {
   useEffect(() => {
     if (googleStatus === "authenticated") return;
 
-    console.log("🟡 Cargando LocalStorage Auth...");
+    console.log("🟡 Loading LocalStorage Auth...");
 
     const storedToken = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");

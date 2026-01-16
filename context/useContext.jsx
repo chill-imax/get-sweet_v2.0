@@ -10,6 +10,7 @@ import {
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import api from "@/app/api/auth/axios";
+import Image from "next/image";
 
 const AuthContext = createContext(null);
 
@@ -226,8 +227,16 @@ export const AuthProvider = ({ children }) => {
     >
       {/* Evita parpadeos de UI mientras carga el estado inicial */}
       {authState.loading && pathname !== "/sign-in" ? (
-        <div className="flex items-center justify-center h-screen">
-          Cargando...
+        <div className="flex flex-col items-center justify-center h-screen bg-white">
+          <div className="relative animate-bounce">
+            <Image
+              src="/icons/logogetsweet.png"
+              alt="Get Sweet"
+              width={120}
+              height={120}
+              priority
+            />
+          </div>
         </div>
       ) : (
         children
